@@ -86,14 +86,14 @@
         function calculateResourcesPerHectare(farmSize, stage) {
             if (!stage.resourcesPerHectare || !farmSize) return null;
             const res = stage.resourcesPerHectare;
-            const totalFert = parseInt(res.totalFertilizer) * farmSize;
+            const totalFert = parseFloat(res.totalFertilizer) * farmSize;
             const totalPest = parseFloat(res.totalPesticide) * farmSize;
             return {
                 totalFertilizer: `${totalFert} bags`,
                 totalPesticide: `${totalPest.toFixed(2)} quarts`,
                 applications: res.applications.map(app => ({
                     day: app.day,
-                    fertilizer: `${parseInt(app.fertilizer) * farmSize} bags`,
+                    fertilizer: `${parseFloat(app.fertilizer) * farmSize} bags`,
                     pesticide: `~${(totalPest / res.applications.length).toFixed(2)} quarts`
                 }))
             };
