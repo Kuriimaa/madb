@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagtanimAyDiBiro (MADB) - Welcome</title>
+    <meta name="description" content="Step-by-step rice farming guidance and easy expense tracking for Bagabag farmers">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+</head>
+<body class="welcome-page">
+    <div class="container">
+        <div class="logo">🌾</div>
+        <h1>MagtanimAyDiBiro</h1>
+        <div class="tagline">
+            Step-by-step rice farming guidance and easy expense tracking—right on your phone.
+        </div>
+        <a href="farm-setup.html"><button class="start-btn">Start Now</button></a>
+        <div class="footer">Empowering Bagabag farmers, one step at a time.</div>
+    </div>
+
+    <script src="js/db.js"></script>
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html> 

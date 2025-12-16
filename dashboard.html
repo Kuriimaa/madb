@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagtanimAyDiBiro (MADB) - Dashboard</title>
+    <meta name="description" content="Farm dashboard showing cultivation progress and financial overview">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+    <script src="js/db.js"></script>
+    <script src="js/rice-stages.js"></script>
+</head>
+<body class="dashboard-page">
+    <div class="container">
+        <header>
+            <h2>MagtanimAyDiBiro</h2>
+            <div style="font-size:1rem; font-weight:normal;">Main Dashboard</div>
+        </header>
+
+        <div id="dashboardContent">
+            <div class="summary-section">
+                <div id="farmSummary"></div>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h3>🌱 Rice Cultivation Progress</h3>
+                        <div id="currentStage">Loading...</div>
+                        <div class="progress-indicator">
+                            <div class="progress-bar" id="cultivationProgress" style="width: 0%"></div>
+                        </div>
+                        <div class="next-action" id="nextAction">Loading next action...</div>
+                        <div id="stageSummary"></div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <h3>💰 Financial Overview</h3>
+                        <div class="expense-overview">
+                            <div>
+                                <div>This Month</div>
+                                <div class="expense-amount" id="monthlyExpense">₱0</div>
+                            </div>
+                            <div class="expense-trend" id="expenseTrend">Loading...</div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="expenseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <div class="quick-action-btn" onclick="location.href='farm-setup.html'">
+                        <div class="icon">📝</div>
+                        <div class="label">Edit Farm Info</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="location.href='resource-tracker.html'">
+                        <div class="icon">➕</div>
+                        <div class="label">Add Expense</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="location.href='rice-guide.html'">
+                        <div class="icon">📅</div>
+                        <div class="label">View Schedule</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">Empowering Bagabag farmers, one step at a time.</div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item active">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-label">Dashboard</div>
+        </a>
+        <a href="rice-guide.html" class="nav-item">
+            <div class="nav-icon">🌱</div>
+            <div class="nav-label">Rice Guide</div>
+        </a>
+        <a href="resource-tracker.html" class="nav-item">
+            <div class="nav-icon">💧</div>
+            <div class="nav-label">Resources</div>
+        </a>
+    </nav>
+
+    <script>
+        // Use shared rice cultivation stages
+        const stages = RiceStages.getDashboardStages();
+
+        async function loadFarmInfo() {
+            try {
+                return await MADBStorage.getItem('farmInfo');
+            } catch (error) {
+                console.error('Error loading farm info:', error);
+                return null;
+            }
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function getStageDate(startDate, offset) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + offset);
+            return formatDate(d);
+        }
+
+        // Use shared functions for consistent calculations
+
+        function renderFarmSummary(targetId, farmInfo) {
+            const mount = document.getElementById(targetId);
+            mount.innerHTML = `
+                <div class="farm-summary-card">
+                    <h4>${farmInfo.name}</h4>
+                    <div class="farm-meta">
+                        Size: <strong>${farmInfo.size} ha</strong><br>
+                        Start Date: <strong>${formatDate(new Date(farmInfo.startDate))}</strong><br>
+                        Cropping: <strong>${farmInfo.cropping}</strong>
+                    </div>
+                    <div style="margin-top:12px;">
+                        <a class="primary-btn" href="farm-setup.html">Update Info</a>
+                    </div>
+                </div>
+            `;
+        }
+
+        function calculateExpenseSummary(expenses) {
+            const categories = {};
+            let monthlyTotal = 0;
+
+            expenses.forEach(expense => {
+                const amount = Number(expense.amount);
+                monthlyTotal += amount;
+                categories[expense.category] = (categories[expense.category] || 0) + amount;
+            });
+
+            // Provide default data if no expenses yet
+            if (Object.keys(categories).length === 0) {
+                return {
+                    monthlyTotal: 0,
+                    categories: {}
+                };
+            }
+
+            return {
+                monthlyTotal,
+                categories
+            };
+        }
+
+        function renderStageSummary(currentIdx) {
+            return `
+                <div style="color: #666; margin-top: 14px; margin-bottom: 4px;">Stage Progress:</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    ${stages.map((stage, index) => `
+                        <div style="
+                            padding: 4px 10px;
+                            border-radius: 16px;
+                            background: ${index === currentIdx ? '#e6a23c22' : index < currentIdx ? '#4a7c5922' : '#f0f0f0'};
+                            color: ${index === currentIdx ? '#e6a23c' : index < currentIdx ? '#4a7c59' : '#666'};
+                            font-size: 0.85rem;
+                        ">
+                            ${stage.label}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function renderDashboard() {
+            const content = document.getElementById('dashboardContent');
+            const farmInfo = await loadFarmInfo();
+
+            if (!farmInfo) {
+                content.innerHTML = `
+                    <div class="missing-farm-info">
+                        <h3>Set up your farm first</h3>
+                        <p>Tell us the farm name, size, start date, and cropping cycle to unlock your personalized dashboard.</p>
+                        <a class="primary-btn" href="farm-setup.html">Go to Farm Setup</a>
+                    </div>
+                `;
+                return;
+            }
+
+            renderFarmSummary('farmSummary', farmInfo);
+
+            const progressData = RiceStages.calculateProgress(farmInfo.startDate);
+            const currentIdx = progressData.currentStageIndex;
+            const currentStage = stages[currentIdx];
+            const nextStage = stages[currentIdx + 1] || null;
+
+            document.getElementById('cultivationProgress').style.width = `${progressData.percentage}%`;
+            document.getElementById('currentStage').innerHTML = `
+                <div style="font-size: 1.1rem; font-weight: bold; color: #4a7c59;">${currentStage.title}</div>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 4px;">
+                    Day ${progressData.daysElapsed} of ${progressData.totalDays} • Scheduled: ${getStageDate(farmInfo.startDate, currentStage.offset)}
+                </div>
+            `;
+
+            document.getElementById('nextAction').innerHTML = progressData.isComplete
+                ? `<div><strong>🎉 Cultivation Complete!</strong></div><div style="font-size:0.9rem; margin-top:4px;">${progressData.daysElapsed} days completed. Review post-harvest tasks.</div>`
+                : nextStage
+                ? `<div><strong>Next:</strong> ${nextStage.title}</div><div style="font-size:0.9rem; margin-top:4px;">Target: ${getStageDate(farmInfo.startDate, nextStage.offset)}</div>`
+                : `<div><strong>Final Stage:</strong> ${currentStage.title}</div><div style="font-size:0.9rem; margin-top:4px;">${progressData.daysElapsed}/${progressData.totalDays} days completed</div>`;
+
+            document.getElementById('stageSummary').innerHTML = renderStageSummary(currentIdx);
+            document.getElementById('expenseTrend').textContent = `${farmInfo.cropping} cropping`;
+
+            // Load and calculate expense data from IndexedDB
+            const expenses = await IndexedDBStorage.getAllExpenses();
+            const expenseData = calculateExpenseSummary(expenses);
+
+            document.getElementById('monthlyExpense').textContent = `₱${expenseData.monthlyTotal.toLocaleString()}`;
+
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(expenseData.categories),
+                    datasets: [{
+                        data: Object.values(expenseData.categories),
+                        backgroundColor: ['#4a7c59', '#8fb996', '#3d85c6', '#e6a23c'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDashboard().catch(error => {
+                console.error('Error rendering dashboard:', error);
+            });
+        });
+    </script>
+
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html> 
