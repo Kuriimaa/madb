@@ -2,7 +2,7 @@
   "name": "MagtanimAyDiBiro - Rice Farming Management",
   "short_name": "MADB",
   "description": "Step-by-step rice farming guidance and easy expense tracking for Bagabag farmers",
-  "start_url": "/index.html",
+  "start_url": "/madb/index.html",
   "display": "standalone",
   "background_color": "#4a7c59",
   "theme_color": "#4a7c59",
@@ -42,3 +42,4 @@
     }
   ]
 }
+
