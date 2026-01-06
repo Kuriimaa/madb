@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farm Setup - MADB</title>
+    <meta name="description" content="Set up your farm details for personalized rice farming management">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+</head>
+<body class="farm-setup-page">
+    <div class="container">
+        <div class="logo">🌾</div>
+        <h2 id="pageTitle">Farm Setup</h2>
+        <div class="subtitle" id="pageSubtitle">Enter your farm details to personalize your experience.</div>
+        <form id="farmForm">
+            <div class="form-row">
+                <label for="farmName">Farm Name</label>
+                <input type="text" id="farmName" name="farmName" required placeholder="e.g. Rice Field">
+            </div>
+            <div class="form-row">
+                <label for="farmSize">Size (hectares)</label>
+                <input type="number" id="farmSize" name="farmSize" min="0.1" step="0.1" required placeholder="e.g. 1.5">
+            </div>
+            <div class="form-row">
+                <label for="startDate">Starting Date</label>
+                <input type="date" id="startDate" name="startDate" required>
+            </div>
+            <div class="form-row">
+                <label for="cropping">Cropping</label>
+                <select id="cropping" name="cropping" required>
+                    <option value="">Select...</option>
+                    <option value="First">First Cropping</option>
+                    <option value="Second">Second Cropping</option>
+                </select>
+            </div>
+            <button type="submit">Save & Continue</button>
+        </form>
+        <div class="footer">Empowering Bagabag farmers, one step at a time.</div>
+    </div>
+
+    <script src="js/db.js"></script>
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Don't register service worker in local dev to avoid stale caching
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        let editMode = false;
+        let editFarmId = null;
+
+        // Check if we're in edit mode
+        const urlParams = new URLSearchParams(window.location.search);
+        const editId = urlParams.get('edit');
+
+        async function loadFarmForEdit() {
+            if (!editId) return;
+
+            try {
+                const farm = await IndexedDBStorage.getFarm(editId);
+                if (!farm) {
+                    alert('Farm not found');
+                    window.location.href = 'manage-farms.html';
+                    return;
+                }
+
+                editMode = true;
+                editFarmId = editId;
+
+                // Update UI
+                document.getElementById('pageTitle').textContent = 'Edit Farm';
+                document.getElementById('pageSubtitle').textContent = 'Update your farm details.';
+                document.querySelector('button[type="submit"]').textContent = 'Save Changes';
+
+                // Populate form
+                document.getElementById('farmName').value = farm.name;
+                document.getElementById('farmSize').value = farm.size;
+                document.getElementById('startDate').value = farm.startDate;
+                document.getElementById('cropping').value = farm.cropping;
+            } catch (error) {
+                console.error('Error loading farm:', error);
+                alert('Error loading farm. Please try again.');
+            }
+        }
+
+        document.getElementById('farmForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('farmName').value.trim();
+            const size = parseFloat(document.getElementById('farmSize').value);
+            const startDate = document.getElementById('startDate').value;
+            const cropping = document.getElementById('cropping').value;
+            
+            if (!name || !size || !startDate || !cropping) return;
+
+            const farmData = { 
+                name, 
+                size, 
+                startDate, 
+                cropping,
+                updatedAt: new Date().toISOString()
+            };
+
+            try {
+                if (editMode) {
+                    // Update existing farm
+                    farmData.id = editFarmId;
+                    farmData.createdAt = (await IndexedDBStorage.getFarm(editFarmId)).createdAt;
+                    await IndexedDBStorage.saveFarm(farmData);
+                    window.location.href = 'manage-farms.html';
+                } else {
+                    // Create new farm
+                    farmData.createdAt = new Date().toISOString();
+                    const farmId = await IndexedDBStorage.saveFarm(farmData);
+                    
+                    // Set as selected farm
+                    await IndexedDBStorage.setSelectedFarmId(farmId);
+                    
+                    // Also save to legacy storage for backward compatibility
+                    await MADBStorage.setItem('farmInfo', farmData);
+                    
+                    window.location.href = 'dashboard.html';
+                }
+            } catch (error) {
+                console.error('Error saving farm info:', error);
+                alert('Error saving farm information. Please try again.');
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            if (editId) {
+                loadFarmForEdit();
+            }
+        });
+    </script>
+</body>
+</html> 

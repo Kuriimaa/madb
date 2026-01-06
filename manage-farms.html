@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Farms - MADB</title>
+    <meta name="description" content="Manage your farm profiles">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+    <script src="js/db.js"></script>
+</head>
+<body class="manage-farms-page">
+    <div class="container">
+        <header>
+            <h2>Manage Farms</h2>
+            <div style="font-size:1rem; font-weight:normal;">View and edit your farm profiles</div>
+        </header>
+
+        <div class="manage-content">
+            <div class="add-farm-section">
+                <button class="primary-btn" onclick="location.href='farm-setup.html'">
+                    ➕ Add New Farm
+                </button>
+            </div>
+
+            <div id="farmsList" class="farms-list">
+                <div class="loading-message">Loading farms...</div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item">
+                <div class="nav-icon">🏠</div>
+                <div class="nav-label">Dashboard</div>
+            </a>
+            <a href="rice-guide.html" class="nav-item">
+                <div class="nav-icon">🌱</div>
+                <div class="nav-label">Rice Guide</div>
+            </a>
+            <a href="resource-tracker.html" class="nav-item">
+                <div class="nav-icon">💧</div>
+                <div class="nav-label">Resources</div>
+            </a>
+        </nav>
+    </div>
+
+    <script>
+        let farms = [];
+        let selectedFarmId = null;
+
+        function formatDate(date) {
+            return new Date(date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        async function loadFarms() {
+            try {
+                farms = await IndexedDBStorage.getAllFarms();
+                selectedFarmId = await IndexedDBStorage.getSelectedFarmId();
+                
+                if (farms.length === 0) {
+                    renderEmptyState();
+                } else {
+                    renderFarmsList();
+                }
+            } catch (error) {
+                console.error('Error loading farms:', error);
+                document.getElementById('farmsList').innerHTML = `
+                    <div class="error-message">Error loading farms. Please refresh the page.</div>
+                `;
+            }
+        }
+
+        function renderEmptyState() {
+            document.getElementById('farmsList').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🌾</div>
+                    <h3>No Farms Yet</h3>
+                    <p>Get started by adding your first farm profile.</p>
+                </div>
+            `;
+        }
+
+        function renderFarmsList() {
+            const farmsList = document.getElementById('farmsList');
+            
+            // Sort farms: active first, then completed
+            const sortedFarms = [...farms].sort((a, b) => {
+                const aCompleted = a.completed || false;
+                const bCompleted = b.completed || false;
+                if (aCompleted === bCompleted) return 0;
+                return aCompleted ? 1 : -1;
+            });
+            
+            farmsList.innerHTML = sortedFarms.map(farm => {
+                const isSelected = farm.id === selectedFarmId;
+                const isCompleted = farm.completed || false;
+                
+                return `
+                    <div class="farm-card ${isSelected ? 'selected' : ''} ${isCompleted ? 'completed' : ''}" data-farm-id="${farm.id}">
+                        <div class="farm-card-header">
+                            <div class="farm-card-title">
+                                <h3>${farm.name}</h3>
+                                ${isSelected ? '<span class="active-badge">Active</span>' : ''}
+                                ${isCompleted ? '<span class="completed-badge">✅ Completed</span>' : ''}
+                            </div>
+                            <div class="farm-card-actions">
+                                ${!isSelected ? `<button class="action-btn select-btn" onclick="selectFarm('${farm.id}')">Select</button>` : ''}
+                                <button class="action-btn edit-btn" onclick="editFarm('${farm.id}')">Edit</button>
+                                ${isCompleted ? 
+                                    `<button class="action-btn unmark-btn" onclick="unmarkFarmCompleted('${farm.id}')">Unmark</button>` : 
+                                    ''
+                                }
+                                <button class="action-btn delete-btn" onclick="deleteFarmConfirm('${farm.id}')">Delete</button>
+                            </div>
+                        </div>
+                        <div class="farm-card-details">
+                            <div class="farm-detail">
+                                <span class="detail-label">Size:</span>
+                                <span class="detail-value">${farm.size} hectares</span>
+                            </div>
+                            <div class="farm-detail">
+                                <span class="detail-label">Start Date:</span>
+                                <span class="detail-value">${formatDate(farm.startDate)}</span>
+                            </div>
+                            <div class="farm-detail">
+                                <span class="detail-label">Cropping:</span>
+                                <span class="detail-value">${farm.cropping}</span>
+                            </div>
+                            ${isCompleted && farm.completedDate ? `
+                            <div class="farm-detail">
+                                <span class="detail-label">Completed:</span>
+                                <span class="detail-value">${formatDate(farm.completedDate)}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function selectFarm(farmId) {
+            try {
+                await IndexedDBStorage.setSelectedFarmId(farmId);
+                selectedFarmId = farmId;
+                renderFarmsList();
+                
+                // Show success message
+                showNotification('Farm selected successfully!');
+            } catch (error) {
+                console.error('Error selecting farm:', error);
+                alert('Error selecting farm. Please try again.');
+            }
+        }
+
+        function editFarm(farmId) {
+            window.location.href = `farm-setup.html?edit=${farmId}`;
+        }
+
+        async function deleteFarmConfirm(farmId) {
+            const farm = farms.find(f => f.id === farmId);
+            if (!farm) return;
+
+            const isSelected = farmId === selectedFarmId;
+            
+            let confirmMessage = `Are you sure you want to delete "${farm.name}"?\n\n`;
+            confirmMessage += 'This will also delete all expenses associated with this farm.\n';
+            confirmMessage += 'This action cannot be undone.';
+
+            if (isSelected && farms.length > 1) {
+                confirmMessage += '\n\nNote: This is your active farm. Another farm will be selected automatically.';
+            }
+
+            if (!confirm(confirmMessage)) return;
+
+            try {
+                // Delete the farm and its expenses
+                await IndexedDBStorage.deleteExpensesByFarm(farmId);
+                await IndexedDBStorage.deleteFarm(farmId);
+
+                // If this was the selected farm, select another one
+                if (isSelected) {
+                    const remainingFarms = farms.filter(f => f.id !== farmId);
+                    if (remainingFarms.length > 0) {
+                        await IndexedDBStorage.setSelectedFarmId(remainingFarms[0].id);
+                    } else {
+                        await IndexedDBStorage.setSelectedFarmId(null);
+                    }
+                }
+
+                // Reload farms list
+                await loadFarms();
+                showNotification('Farm deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting farm:', error);
+                alert('Error deleting farm. Please try again.');
+            }
+        }
+
+        async function unmarkFarmCompleted(farmId) {
+            const farm = farms.find(f => f.id === farmId);
+            if (!farm) return;
+
+            const confirmed = confirm(
+                `Unmark "${farm.name}" as completed?\n\n` +
+                `This will reactivate the farm and allow you to add new expenses again.`
+            );
+
+            if (!confirmed) return;
+
+            try {
+                await IndexedDBStorage.markFarmActive(farmId);
+                await loadFarms();
+                showNotification(`Farm "${farm.name}" is now active again!`);
+            } catch (error) {
+                console.error('Error unmarking farm as completed:', error);
+                alert('Error unmarking farm. Please try again.');
+            }
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Wait for IndexedDB to be ready
+        async function init() {
+            try {
+                await new Promise((resolve) => {
+                    const check = () => {
+                        if (window.IndexedDBStorage) {
+                            resolve();
+                        } else {
+                            setTimeout(check, 50);
+                        }
+                    };
+                    check();
+                });
+
+                await loadFarms();
+            } catch (error) {
+                console.error('Error initializing manage farms page:', error);
+            }
+        }
+
+        init();
+
+        // Make functions global
+        window.selectFarm = selectFarm;
+        window.editFarm = editFarm;
+        window.deleteFarmConfirm = deleteFarmConfirm;
+        window.unmarkFarmCompleted = unmarkFarmCompleted;
+    </script>
+
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
+
+

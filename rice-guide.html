@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagtanimAyDiBiro (MADB) - Rice Cultivation Guide</title>
+    <meta name="description" content="Step-by-step rice cultivation guide for Bagabag farmers">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+    <script>
+        // Dev helper: unregister service workers early to avoid stale cached HTML on localhost
+        (function() {
+            try {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then(regs => {
+                            regs.forEach(r => {
+                                console.log('Dev: unregistering service worker (head):', r);
+                                r.unregister();
+                            });
+                        }).catch(e => console.warn('Failed to get registrations (head):', e));
+                    }
+                }
+            } catch (e) {
+                console.warn('Service worker unregister in head failed:', e);
+            }
+        })();
+    </script>
+    <script src="js/db.js"></script>
+    <script src="js/rice-stages.js"></script>
+</head>
+<body class="rice-guide-page">
+    <div class="container">
+        <header>
+            <h2>MagtanimAyDiBiro</h2>
+            <div style="font-size:1rem; font-weight:normal;">Rice Cultivation Guide</div>
+        </header>
+        <div id="guide"></div>
+    </div>
+    <script>
+        // Use shared rice cultivation stages for consistency
+        const stages = RiceStages.STAGES;
+
+        let farmInfo = null;
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        // returns whole days elapsed from farm start to today (can be negative)
+        function daysSinceStart() {
+            if (!farmInfo || !farmInfo.startDate) return null;
+            const start = new Date(farmInfo.startDate);
+            const now = new Date();
+            // keep midnight normalization
+            start.setHours(0,0,0,0);
+            now.setHours(0,0,0,0);
+            const diffMs = now - start;
+            return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        }
+
+        // Determine whether a stage can start based on timeline using task offsets.
+        function canStartStage(stage) {
+            const days = daysSinceStart();
+            if (days === null) return { allowed: false, reason: 'No farm start date' };
+
+            // derive max offset from tasks (if tasks items are objects with offset)
+            const offsets = (stage.tasks || [])
+                .map(t => typeof t === 'object' && t.offset != null ? t.offset : null)
+                .filter(v => v != null);
+
+            const maxOffset = offsets.length ? Math.max(...offsets) : (stage.offset || 0);
+            if (days >= maxOffset) return { allowed: true };
+            return { allowed: false, reason: `Available from day ${maxOffset}` };
+        }
+
+        function getStageDate(offset) {
+            if (!farmInfo || !farmInfo.startDate) return '';
+            const d = new Date(farmInfo.startDate);
+            d.setDate(d.getDate() + offset);
+            return formatDate(d);
+        }
+
+        function calculateResourcesPerHectare(farmSize, stage) {
+            if (!stage.resourcesPerHectare || !farmSize) return null;
+            const res = stage.resourcesPerHectare;
+            const totalFert = parseFloat(res.totalFertilizer) * farmSize;
+            const totalPest = parseFloat(res.totalPesticide) * farmSize;
+            return {
+                totalFertilizer: `${totalFert.toFixed(2)} bags`,
+                totalPesticide: `${totalPest.toFixed(2)} quarts`, 
+                applications: res.applications.map(app => ({
+                    day: app.day,
+                    fertilizer: `${(parseFloat(app.fertilizer) * farmSize).toFixed(2)} bags`,
+                    pesticide: `~${(totalPest / res.applications.length).toFixed(2)} quarts`
+                }))
+            };
+        }
+
+        function renderGuide() {
+            const guide = document.getElementById('guide');
+            if (!farmInfo) {
+                guide.innerHTML = `<div style='padding:32px 20px 0 20px; text-align:center;'>
+                    <h3 style='color:#3d85c6;'>Set Up Your Farm Information</h3>
+                    <p style='margin:16px 0;'>To use the rice cultivation guide, please enter your farm details first.</p>
+                    <a href='farm-setup.html'><button style='background:#4a7c59; color:white; border:none; border-radius:6px; padding:10px 24px; font-size:1rem; cursor:pointer;'>Go to Farm Setup</button></a>
+                </div>`;
+                return;
+            }
+
+            // Farm info summary
+            let farmInfoHTML = `<div class="farm-summary-card">
+                <b>Farm Name:</b> ${farmInfo.name}<br>
+                <b>Size:</b> ${farmInfo.size} ha<br>
+                <b>Start Date:</b> ${formatDate(new Date(farmInfo.startDate))}<br>
+                <b>Cropping:</b> ${farmInfo.cropping}
+            </div>`;
+
+            // Render stages: show tasks with execution dates (date shown before description)
+            let stagesHTML = stages.map((s) => {
+                const availability = canStartStage(s);
+
+
+                let section = `<section class="stage-card">
+                    <h3>${s.title}</h3>
+                    <p>${s.desc}</p>
+                    <div class="stage-tip">${s.tip}</div>`;
+
+                // show resource block if present
+                if (s.resourcesPerHectare) {
+                    const resources = calculateResourcesPerHectare(farmInfo.size, s);
+                    if (resources) {
+                        section += `<div style='background:#f0f0f0; padding:12px; border-radius:4px; margin:12px 0;'>
+                            <b style='color:#2c3e50;'>Resources Required (${farmInfo.size} ha):</b><br>
+                            <div style='margin-top:8px; color:#333;'>
+                                <b>Total Fertilizer:</b> ${resources.totalFertilizer}<br>
+                                <b>Total Pesticide:</b> ${resources.totalPesticide}<br>
+                                <div style='margin-top:8px; font-size:0.9rem;'>
+                                    <b>Application Schedule:</b><br>`;
+                        resources.applications.forEach(app => {
+                            section += `Day ${app.day}: ${app.fertilizer} fertilizer <br>`;
+                        });
+                        section += `</div></div>`;
+                    }
+                }
+
+                // render tasks with execution dates — date shown before description (bulleted)
+                if (s.tasks && s.tasks.length > 0) {
+                    section += `<ul class="task-list" style="margin:12px 0 0 18px; color:#333;">`;
+                        s.tasks.forEach((task) => {
+                            let taskText = typeof task === 'object' ? task.text : task;
+                            const taskOffset = typeof task === 'object' && task.offset != null ? task.offset : s.offset;
+                            const taskDate = taskOffset != null ? getStageDate(taskOffset) : '';
+
+                            // If we have farm size and the task mentions "bags/ha", replace it
+                            // with the computed total bags for the farm size (e.g. "3 bags/ha" -> "6 bags").
+                            if (farmInfo && farmInfo.size) {
+                                taskText = taskText.replace(/(\d+)\s*bags\s*\/\s*ha/gi, (match, p1) => {
+                                    const perHa = parseFloat(p1);
+                                    const total = perHa * parseFloat(farmInfo.size);
+                                    return Number.isInteger(total) ? `${total} bags` : `${total.toFixed(2)} bags`;
+                                });
+                            }
+
+                            section += `<li>${taskDate ? `<span style="color:#666; font-size:0.95rem; margin-right:8px;">${taskDate} —</span>` : ''}${taskText}</li>`;
+                        });
+                    section += `</ul>`;
+                }
+
+                section += '</section><hr class="section-divider">';
+                return section;
+            }).join('');
+
+            guide.innerHTML = farmInfoHTML + stagesHTML;
+        }
+
+        // Load farm info from IndexedDB (multi-farm support)
+        async function loadFarmInfo() {
+                    try {
+                // Wait for IndexedDB to be ready
+                        const start = Date.now();
+                while (!window.IndexedDBStorage && Date.now() - start < 3000) {
+                            await new Promise(r => setTimeout(r, 50));
+                        }
+
+                if (!window.IndexedDBStorage) {
+                    console.error('IndexedDB not ready');
+                                return null;
+                            }
+
+                // Get selected farm ID
+                const selectedFarmId = await IndexedDBStorage.getSelectedFarmId();
+                
+                if (!selectedFarmId) {
+                    // Try legacy farmInfo for backward compatibility
+                    console.log('No selected farm, trying legacy storage');
+                    const legacyFarm = await MADBStorage.getItem('farmInfo');
+                    farmInfo = legacyFarm;
+                    return legacyFarm;
+                }
+
+                // Load the selected farm
+                const farm = await IndexedDBStorage.getFarm(selectedFarmId);
+                console.log('Loaded selected farm:', farm);
+                farmInfo = farm;
+                return farm;
+                    } catch (error) {
+                        console.error('Error loading farm info:', error);
+                        farmInfo = null;
+                        return null;
+                    }
+        }
+
+        // Initial render
+        async function ensureIndexedDBReady(timeout = 3000) {
+            if (window.IndexedDBStorage && window.MADBStorage) return;
+            return new Promise((resolve, reject) => {
+                const start = Date.now();
+                const check = () => {
+                    if (window.IndexedDBStorage && window.MADBStorage) return resolve();
+                    if (Date.now() - start > timeout) return reject(new Error('IndexedDB not ready'));
+                    setTimeout(check, 50);
+                };
+                check();
+            });
+        }
+
+        async function initGuide() {
+            // Ensure storage helper is available (helps when service worker serves stale HTML)
+            try {
+                await ensureIndexedDBReady();
+            } catch (e) {
+                console.warn('IndexedDBStorage not ready before init, continuing and will retry on focus', e);
+            }
+            try {
+                console.log('Starting guide initialization...');
+
+                // Wait for IndexedDB to be ready
+                if (!window.IndexedDBStorage) {
+                    console.log('Waiting for IndexedDB to initialize...');
+                    await new Promise(resolve => {
+                        const checkDB = () => {
+                            if (window.IndexedDBStorage) {
+                                console.log('IndexedDB is now available');
+                                resolve();
+                            } else {
+                                console.log('IndexedDB not ready yet, checking again...');
+                                setTimeout(checkDB, 50);
+                            }
+                        };
+                        checkDB();
+                    });
+                }
+
+                console.log('IndexedDB ready, loading farm info...');
+                let loadedFarmInfo = await loadFarmInfo();
+                console.log('Farm info loaded:', loadedFarmInfo);
+
+                // Fallback: if IndexedDB doesn't have farmInfo, try migrating from localStorage
+                if (!loadedFarmInfo) {
+                    try {
+                        const raw = localStorage.getItem('farmInfo');
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            console.log('Found farmInfo in localStorage, migrating to IndexedDB:', parsed);
+                            await MADBStorage.setItem('farmInfo', parsed);
+                            loadedFarmInfo = parsed;
+                        }
+                    } catch (err) {
+                        console.warn('No valid farmInfo in localStorage or migration failed:', err);
+                    }
+                }
+
+                if (!loadedFarmInfo) {
+                    console.log('No farm info found, showing setup prompt');
+                } else {
+                    console.log('Farm info found, showing guide');
+                }
+
+                // Ensure global farmInfo is set for renderGuide
+                farmInfo = loadedFarmInfo || null;
+                renderGuide();
+            } catch (error) {
+                console.error('Error initializing guide:', error);
+                renderGuide(); // Show setup prompt on error
+            }
+        }
+        initGuide();
+        // Re-check guide when user returns to the page (covers redirects from farm setup)
+        window.addEventListener('focus', async () => {
+            console.log('Page focused — re-initializing rice guide to pick up farm info changes');
+            try {
+                await initGuide();
+            } catch (e) {
+                console.warn('Re-init on focus failed:', e);
+            }
+        });
+
+        // Global handlers to capture unexpected promise rejections and errors (helps debugging)
+        window.addEventListener('unhandledrejection', (evt) => {
+            console.error('Unhandled promise rejection (rice-guide):', evt.reason, evt);
+        });
+        window.addEventListener('error', (evt) => {
+            console.error('Global error (rice-guide):', evt.message, evt.error || evt);
+        });
+
+        // During development on localhost, unregister any service worker to avoid stale cached HTML
+        (async function unregisterSWInDev() {
+            try {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    if ('serviceWorker' in navigator) {
+                        const regs = await navigator.serviceWorker.getRegistrations();
+                        for (const reg of regs) {
+                            console.log('Unregistering service worker (dev):', reg);
+                            await reg.unregister();
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to unregister service worker in dev:', e);
+            }
+        })();
+    </script>
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-label">Dashboard</div>
+        </a>
+        <a href="rice-guide.html" class="nav-item active">
+            <div class="nav-icon">🌱</div>
+            <div class="nav-label">Rice Guide</div>
+        </a>
+        <a href="resource-tracker.html" class="nav-item">
+            <div class="nav-icon">💧</div>
+            <div class="nav-label">Resources</div>
+        </a>
+    </nav>
+
+    <script>
+        // Register service worker (skip in development on localhost/127.0.0.1)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

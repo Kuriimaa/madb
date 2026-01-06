@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagtanimAyDiBiro (MADB) - Dashboard</title>
+    <meta name="description" content="Farm dashboard showing cultivation progress and financial overview">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+    <script src="js/db.js"></script>
+    <script src="js/rice-stages.js"></script>
+    <script src="js/notifications.js"></script>
+</head>
+<body class="dashboard-page">
+    <div class="container">
+        <header>
+            <h2>MagtanimAyDiBiro</h2>
+            <div style="font-size:1rem; font-weight:normal;">Main Dashboard</div>
+        </header>
+
+        <!-- Notification Banners -->
+        <div id="notificationBanners" class="notification-banners-container"></div>
+
+        <div id="dashboardContent">
+            <div class="summary-section">
+                <div id="farmSummary"></div>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h3>🌱 Rice Cultivation Progress</h3>
+                        <div id="currentStage">Loading...</div>
+                        <div class="progress-indicator">
+                            <div class="progress-bar" id="cultivationProgress" style="width: 0%"></div>
+                        </div>
+                        <div class="next-action" id="nextAction">Loading next action...</div>
+                        <div id="stageSummary"></div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <h3>💰 Financial Overview</h3>
+                        <div class="expense-overview">
+                            <div>
+                                <div>This Month</div>
+                                <div class="expense-amount" id="monthlyExpense">₱0</div>
+                            </div>
+                            <div class="expense-trend" id="expenseTrend">Loading...</div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="expenseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="quick-actions" id="quickActions">
+                    <div class="quick-action-btn" onclick="location.href='manage-farms.html'">
+                        <div class="icon">🏡</div>
+                        <div class="label">Manage Farms</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="location.href='resource-tracker.html'">
+                        <div class="icon">➕</div>
+                        <div class="label">Add Expense</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="location.href='rice-guide.html'">
+                        <div class="icon">📅</div>
+                        <div class="label">View Schedule</div>
+                    </div>
+                    <!-- Mark as Completed button will be added dynamically for active farms -->
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">Empowering Bagabag farmers, one step at a time.</div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item active">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-label">Dashboard</div>
+        </a>
+        <a href="rice-guide.html" class="nav-item">
+            <div class="nav-icon">🌱</div>
+            <div class="nav-label">Rice Guide</div>
+        </a>
+        <a href="resource-tracker.html" class="nav-item">
+            <div class="nav-icon">💧</div>
+            <div class="nav-label">Resources</div>
+        </a>
+    </nav>
+
+    <script>
+        // Use shared rice cultivation stages
+        const stages = RiceStages.getDashboardStages();
+
+        async function loadFarmInfo() {
+            try {
+                // Get selected farm ID
+                const selectedFarmId = await IndexedDBStorage.getSelectedFarmId();
+                if (!selectedFarmId) {
+                    // Try legacy farmInfo for backward compatibility
+                    const legacyFarm = await MADBStorage.getItem('farmInfo');
+                    return legacyFarm;
+                }
+                // Load the selected farm
+                const farm = await IndexedDBStorage.getFarm(selectedFarmId);
+                return farm;
+            } catch (error) {
+                console.error('Error loading farm info:', error);
+                return null;
+            }
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function getStageDate(startDate, offset) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + offset);
+            return formatDate(d);
+        }
+
+        // Use shared functions for consistent calculations
+
+        function renderFarmSummary(targetId, farmInfo) {
+            const mount = document.getElementById(targetId);
+            mount.innerHTML = `
+                <div class="farm-summary-card">
+                    <h4>${farmInfo.name}</h4>
+                    <div class="farm-meta">
+                        Size: <strong>${farmInfo.size} ha</strong><br>
+                        Start Date: <strong>${formatDate(new Date(farmInfo.startDate))}</strong><br>
+                        Cropping: <strong>${farmInfo.cropping}</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+        function calculateExpenseSummary(expenses) {
+            const categories = {};
+            let monthlyTotal = 0;
+
+            expenses.forEach(expense => {
+                const amount = Number(expense.amount);
+                monthlyTotal += amount;
+                categories[expense.category] = (categories[expense.category] || 0) + amount;
+            });
+
+            // Provide default data if no expenses yet
+            if (Object.keys(categories).length === 0) {
+                return {
+                    monthlyTotal: 0,
+                    categories: {}
+                };
+            }
+
+            return {
+                monthlyTotal,
+                categories
+            };
+        }
+
+        function renderStageSummary(currentIdx) {
+            return `
+                <div style="color: #666; margin-top: 14px; margin-bottom: 4px;">Stage Progress:</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    ${stages.map((stage, index) => `
+                        <div style="
+                            padding: 4px 10px;
+                            border-radius: 16px;
+                            background: ${index === currentIdx ? '#e6a23c22' : index < currentIdx ? '#4a7c5922' : '#f0f0f0'};
+                            color: ${index === currentIdx ? '#e6a23c' : index < currentIdx ? '#4a7c59' : '#666'};
+                            font-size: 0.85rem;
+                        ">
+                            ${stage.label}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderQuickActions(farmInfo) {
+            const quickActions = document.getElementById('quickActions');
+            const isCompleted = farmInfo.completed || false;
+
+            // Remove existing "Mark as Completed" button if it exists
+            const existingBtn = document.getElementById('markCompletedBtn');
+            if (existingBtn) {
+                existingBtn.remove();
+            }
+
+            // Add "Mark as Completed" button only for active farms
+            if (!isCompleted) {
+                const markCompletedBtn = document.createElement('div');
+                markCompletedBtn.id = 'markCompletedBtn';
+                markCompletedBtn.className = 'quick-action-btn';
+                markCompletedBtn.onclick = () => markFarmAsCompleted(farmInfo.id, farmInfo.name);
+                markCompletedBtn.innerHTML = `
+                    <div class="icon">✅</div>
+                    <div class="label">Mark as Completed</div>
+                `;
+                quickActions.appendChild(markCompletedBtn);
+            } else {
+                // Show completed status message
+                const completedMsg = document.createElement('div');
+                completedMsg.id = 'markCompletedBtn';
+                completedMsg.className = 'quick-action-btn completed-farm-notice';
+                completedMsg.innerHTML = `
+                    <div class="icon">✅</div>
+                    <div class="label">Farm Completed</div>
+                `;
+                quickActions.appendChild(completedMsg);
+            }
+        }
+
+        async function markFarmAsCompleted(farmId, farmName) {
+            const confirmed = confirm(
+                `Mark "${farmName}" as completed?\n\n` +
+                `This farm's cultivation cycle is complete. You can still view historical data, but new expenses cannot be added.\n\n` +
+                `You can unmark it later from Manage Farms if needed.`
+            );
+
+            if (!confirmed) return;
+
+            try {
+                await IndexedDBStorage.markFarmCompleted(farmId);
+                
+                // Show success message
+                alert(`✅ "${farmName}" has been marked as completed!`);
+                
+                // Reload dashboard to reflect changes
+                location.reload();
+            } catch (error) {
+                console.error('Error marking farm as completed:', error);
+                alert('Error marking farm as completed. Please try again.');
+            }
+        }
+
+        async function renderDashboard() {
+            const content = document.getElementById('dashboardContent');
+            const farmInfo = await loadFarmInfo();
+
+            if (!farmInfo) {
+                content.innerHTML = `
+                    <div class="missing-farm-info">
+                        <h3>Set up your farm first</h3>
+                        <p>Tell us the farm name, size, start date, and cropping cycle to unlock your personalized dashboard.</p>
+                        <a class="primary-btn" href="farm-setup.html">Go to Farm Setup</a>
+                    </div>
+                `;
+                return;
+            }
+
+            renderFarmSummary('farmSummary', farmInfo);
+
+            const progressData = RiceStages.calculateProgress(farmInfo.startDate);
+            const currentIdx = progressData.currentStageIndex;
+            const currentStage = stages[currentIdx];
+            const nextStage = stages[currentIdx + 1] || null;
+
+            document.getElementById('cultivationProgress').style.width = `${progressData.percentage}%`;
+            document.getElementById('currentStage').innerHTML = `
+                <div style="font-size: 1.1rem; font-weight: bold; color: #4a7c59;">${currentStage.title}</div>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 4px;">
+                    Day ${progressData.daysElapsed} of ${progressData.totalDays} • Scheduled: ${getStageDate(farmInfo.startDate, currentStage.offset)}
+                </div>
+            `;
+
+            document.getElementById('nextAction').innerHTML = progressData.isComplete
+                ? `<div><strong>🎉 Cultivation Complete!</strong></div><div style="font-size:0.9rem; margin-top:4px;">${progressData.daysElapsed} days completed. Review post-harvest tasks.</div>`
+                : nextStage
+                ? `<div><strong>Next:</strong> ${nextStage.title}</div><div style="font-size:0.9rem; margin-top:4px;">Target: ${getStageDate(farmInfo.startDate, nextStage.offset)}</div>`
+                : `<div><strong>Final Stage:</strong> ${currentStage.title}</div><div style="font-size:0.9rem; margin-top:4px;">${progressData.daysElapsed}/${progressData.totalDays} days completed</div>`;
+
+            document.getElementById('stageSummary').innerHTML = renderStageSummary(currentIdx);
+            document.getElementById('expenseTrend').textContent = `${farmInfo.cropping} cropping`;
+
+            // Add "Mark as Completed" button for active farms
+            renderQuickActions(farmInfo);
+
+            // Load and calculate expense data from IndexedDB (filtered by farm)
+            const expenses = farmInfo.id 
+                ? await IndexedDBStorage.getExpensesByFarm(farmInfo.id)
+                : await IndexedDBStorage.getAllExpenses();
+            const expenseData = calculateExpenseSummary(expenses);
+
+            document.getElementById('monthlyExpense').textContent = `₱${expenseData.monthlyTotal.toLocaleString()}`;
+
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(expenseData.categories),
+                    datasets: [{
+                        data: Object.values(expenseData.categories),
+                        backgroundColor: ['#4a7c59', '#8fb996', '#3d85c6', '#e6a23c'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        async function checkAndShowNotifications(farmInfo) {
+            if (!farmInfo || farmInfo.completed) {
+                return;
+            }
+
+            try {
+                // Get full stage details (not just dashboard labels)
+                const fullStages = RiceStages.STAGES;
+                
+                // Check for upcoming stages
+                const upcoming = await NotificationManager.checkFarmStages(farmInfo, fullStages);
+                
+                // Show in-app banners
+                const bannersContainer = document.getElementById('notificationBanners');
+                if (upcoming.length > 0) {
+                    bannersContainer.innerHTML = upcoming
+                        .map(item => NotificationManager.createBannerHTML(item))
+                        .join('');
+                    bannersContainer.style.display = 'block';
+                } else {
+                    bannersContainer.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error checking notifications:', error);
+            }
+        }
+
+        async function requestNotificationPermission() {
+            // Check if we've already asked
+            const hasAsked = localStorage.getItem('notificationPermissionAsked');
+            
+            if (!hasAsked && 'Notification' in window && Notification.permission === 'default') {
+                // Show a friendly prompt first
+                const banner = document.createElement('div');
+                banner.className = 'permission-request-banner';
+                banner.innerHTML = `
+                    <div class="permission-content">
+                        <span class="permission-icon">🔔</span>
+                        <div>
+                            <strong>Enable Stage Reminders</strong>
+                            <div style="font-size:0.9rem; margin-top:4px;">Get notified about upcoming cultivation stages</div>
+                        </div>
+                    </div>
+                    <div class="permission-actions">
+                        <button class="permission-btn allow-btn" id="allowNotifications">Enable</button>
+                        <button class="permission-btn deny-btn" id="denyNotifications">Not Now</button>
+                    </div>
+                `;
+                
+                const notificationBanners = document.getElementById('notificationBanners');
+                notificationBanners.insertBefore(banner, notificationBanners.firstChild);
+                
+                document.getElementById('allowNotifications').addEventListener('click', async () => {
+                    await NotificationManager.requestPermission();
+                    localStorage.setItem('notificationPermissionAsked', 'true');
+                    banner.remove();
+                });
+                
+                document.getElementById('denyNotifications').addEventListener('click', () => {
+                    localStorage.setItem('notificationPermissionAsked', 'true');
+                    banner.remove();
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await renderDashboard();
+                
+                // Request notification permission if needed
+                await requestNotificationPermission();
+                
+                // Check and show notifications for current farm
+                const farmInfo = await loadFarmInfo();
+                if (farmInfo) {
+                    await checkAndShowNotifications(farmInfo);
+                }
+            } catch (error) {
+                console.error('Error rendering dashboard:', error);
+            }
+        });
+    </script>
+
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html> 
