@@ -23,6 +23,36 @@
 
     <script src="js/db.js"></script>
     <script>
+        // Check if there are existing farms and redirect to dashboard if found
+        async function checkForExistingFarms() {
+            try {
+                // Wait for database to initialize
+                await IndexedDBStorage.initDB();
+                
+                // Check for existing farms
+                const farms = await IndexedDBStorage.getAllFarms();
+                
+                // Also check for legacy farmInfo for backward compatibility
+                const legacyFarm = await MADBStorage.getItem('farmInfo');
+                
+                if (farms.length > 0 || legacyFarm) {
+                    // Redirect to dashboard if farms exist
+                    window.location.href = 'dashboard.html';
+                    return;
+                }
+                
+                // If no farms exist, show the welcome page (already visible)
+            } catch (error) {
+                console.error('Error checking for existing farms:', error);
+                // On error, show welcome page anyway
+            }
+        }
+
+        // Run check when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            checkForExistingFarms();
+        });
+
         // Register service worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
