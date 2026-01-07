@@ -23,24 +23,25 @@
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "View farm dashboard and progress",
-      "url": "madb/dashboard.html",
+      "url": "/madb/dashboard.html",
       "icons": [{ "src": "icon-96x96.png", "sizes": "96x96" }]
     },
     {
       "name": "Rice Guide",
       "short_name": "Guide",
       "description": "View rice cultivation guide",
-      "url": "madb/rice-guide.html",
+      "url": "/madb/rice-guide.html",
       "icons": [{ "src": "icon-96x96.png", "sizes": "96x96" }]
     },
     {
       "name": "Resources",
       "short_name": "Resources",
       "description": "Track farm expenses",
-      "url": "madb/resource-tracker.html",
+      "url": "/madb/resource-tracker.html",
       "icons": [{ "src": "icon-96x96.png", "sizes": "96x96" }]
     }
   ]
 }
+
 
 
