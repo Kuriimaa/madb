@@ -1037,6 +1037,69 @@ body.manage-farms-page .manage-content {
     flex: 1;
 }
 
+/* Backup Section Styles */
+body.manage-farms-page .backup-section {
+    background: linear-gradient(135deg, #4a7c59 0%, #5a9d6d 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
+}
+
+body.manage-farms-page .backup-section h3 {
+    margin: 0 0 8px 0;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body.manage-farms-page .backup-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+body.manage-farms-page .backup-btn {
+    flex: 1;
+    min-width: 140px;
+    padding: 12px 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+body.manage-farms-page .backup-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+body.manage-farms-page .backup-btn:active {
+    transform: translateY(0);
+}
+
+body.manage-farms-page .export-btn:hover {
+    background: rgba(72, 187, 120, 0.3);
+}
+
+body.manage-farms-page .import-btn:hover {
+    background: rgba(66, 153, 225, 0.3);
+}
+
 body.manage-farms-page .add-farm-section {
     margin-bottom: 20px;
     text-align: center;
@@ -1210,6 +1273,15 @@ body.manage-farms-page .error-message {
         flex: 1;
         min-width: 70px;
         text-align: center;
+    }
+    
+    body.manage-farms-page .backup-buttons {
+        flex-direction: column;
+    }
+    
+    body.manage-farms-page .backup-btn {
+        width: 100%;
+        min-width: unset;
     }
 }
 
