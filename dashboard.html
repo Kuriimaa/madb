@@ -41,12 +41,16 @@
                     <div class="summary-card">
                         <h3>💰 Financial Overview</h3>
                         <div class="expense-overview">
-                            <div>
-                                <div>This Month</div>
+                            <div class="expense-item">
+                                <div class="expense-label">This Month</div>
                                 <div class="expense-amount" id="monthlyExpense">₱0</div>
                             </div>
-                            <div class="expense-trend" id="expenseTrend">Loading...</div>
+                            <div class="expense-item total-expense">
+                                <div class="expense-label">Total Cropping</div>
+                                <div class="expense-amount" id="totalExpense">₱0</div>
+                            </div>
                         </div>
+                        <div class="expense-trend" id="expenseTrend">Loading...</div>
                         <div class="chart-container">
                             <canvas id="expenseChart"></canvas>
                         </div>
@@ -140,10 +144,24 @@
         function calculateExpenseSummary(expenses) {
             const categories = {};
             let monthlyTotal = 0;
+            let totalCropping = 0;
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
 
             expenses.forEach(expense => {
                 const amount = Number(expense.amount);
-                monthlyTotal += amount;
+                const expenseDate = new Date(expense.date);
+                
+                // Add to total cropping expenses
+                totalCropping += amount;
+                
+                // Add to monthly total if expense is from current month
+                if (expenseDate.getMonth() === currentMonth && 
+                    expenseDate.getFullYear() === currentYear) {
+                    monthlyTotal += amount;
+                }
+                
                 categories[expense.category] = (categories[expense.category] || 0) + amount;
             });
 
@@ -151,12 +169,14 @@
             if (Object.keys(categories).length === 0) {
                 return {
                     monthlyTotal: 0,
+                    totalCropping: 0,
                     categories: {}
                 };
             }
 
             return {
                 monthlyTotal,
+                totalCropping,
                 categories
             };
         }
@@ -286,6 +306,7 @@
             const expenseData = calculateExpenseSummary(expenses);
 
             document.getElementById('monthlyExpense').textContent = `₱${expenseData.monthlyTotal.toLocaleString()}`;
+            document.getElementById('totalExpense').textContent = `₱${expenseData.totalCropping.toLocaleString()}`;
 
             const ctx = document.getElementById('expenseChart').getContext('2d');
             new Chart(ctx, {
