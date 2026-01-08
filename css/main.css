@@ -370,14 +370,33 @@ body.dashboard-page .next-action {
 }
 
 body.dashboard-page .expense-overview {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
     margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+body.dashboard-page .expense-item {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 3px solid var(--secondary);
+}
+
+body.dashboard-page .expense-item.total-expense {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e8f5e9 100%);
+    border-left-color: var(--primary);
+}
+
+body.dashboard-page .expense-label {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 4px;
 }
 
 body.dashboard-page .expense-amount {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     font-weight: bold;
     color: var(--primary);
 }
@@ -385,6 +404,7 @@ body.dashboard-page .expense-amount {
 body.dashboard-page .expense-trend {
     font-size: 0.9rem;
     color: #666;
+    margin-top: 5px;
 }
 
 body.dashboard-page .quick-actions {
@@ -1435,6 +1455,11 @@ body.manage-farms-page .error-message {
 
 /* Mobile Responsiveness */
 @media (max-width: 480px) {
+    body.dashboard-page .expense-overview {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
     .notification-banner {
         padding: 10px 12px;
         gap: 10px;
