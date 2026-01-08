@@ -320,22 +320,18 @@
             });
         }
 
-        async function checkAndShowNotifications(farmInfo) {
-            if (!farmInfo || farmInfo.completed) {
-                return;
-            }
-
+        async function checkAndShowNotifications() {
             try {
                 // Get full stage details (not just dashboard labels)
                 const fullStages = RiceStages.STAGES;
                 
-                // Check for upcoming stages
-                const upcoming = await NotificationManager.checkFarmStages(farmInfo, fullStages);
+                // Check for upcoming stages across ALL active farms
+                const allUpcoming = await NotificationManager.checkAllFarms(fullStages);
                 
                 // Show in-app banners
                 const bannersContainer = document.getElementById('notificationBanners');
-                if (upcoming.length > 0) {
-                    bannersContainer.innerHTML = upcoming
+                if (allUpcoming.length > 0) {
+                    bannersContainer.innerHTML = allUpcoming
                         .map(item => NotificationManager.createBannerHTML(item))
                         .join('');
                     bannersContainer.style.display = 'block';
@@ -392,11 +388,8 @@
                 // Request notification permission if needed
                 await requestNotificationPermission();
                 
-                // Check and show notifications for current farm
-                const farmInfo = await loadFarmInfo();
-                if (farmInfo) {
-                    await checkAndShowNotifications(farmInfo);
-                }
+                // Check and show notifications for ALL active farms
+                await checkAndShowNotifications();
             } catch (error) {
                 console.error('Error rendering dashboard:', error);
             }
