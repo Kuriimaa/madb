@@ -26,6 +26,12 @@
         // Check if there are existing farms and redirect to dashboard if found
         async function checkForExistingFarms() {
             try {
+                // Ensure IndexedDBStorage is available
+                if (!window.IndexedDBStorage) {
+                    console.log('[Index] Database not ready, showing welcome page');
+                    return;
+                }
+                
                 // Wait for database to initialize
                 await IndexedDBStorage.initDB();
                 
