@@ -639,6 +639,95 @@ function getStoreName(key) {
 }
 
 /**
+ * Export all data as JSON for backup
+ * @returns {Object} All data including farms and expenses
+ */
+async function exportAllData() {
+  try {
+    const farms = await getAllFarms();
+    const expenses = await getAllExpenses();
+    const selectedFarmId = await getSelectedFarmId();
+    
+    const exportData = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      selectedFarmId: selectedFarmId,
+      farms: farms,
+      expenses: expenses
+    };
+    
+    console.log(`[IndexedDB] Exported ${farms.length} farms and ${expenses.length} expenses`);
+    return exportData;
+  } catch (error) {
+    console.error('[IndexedDB] Error exporting data:', error);
+    throw error;
+  }
+}
+
+/**
+ * Import data from JSON backup
+ * @param {Object} data - The backup data to import
+ * @returns {Object} Import statistics
+ */
+async function importAllData(data) {
+  try {
+    if (!data || !data.version) {
+      throw new Error('Invalid backup file format');
+    }
+    
+    const db = await getDB();
+    
+    // Clear existing data
+    const clearTransaction = db.transaction([STORES.FARMS, STORES.EXPENSES], 'readwrite');
+    const farmsStore = clearTransaction.objectStore(STORES.FARMS);
+    const expensesStore = clearTransaction.objectStore(STORES.EXPENSES);
+    
+    await Promise.all([
+      new Promise((resolve, reject) => {
+        const request = farmsStore.clear();
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      }),
+      new Promise((resolve, reject) => {
+        const request = expensesStore.clear();
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      })
+    ]);
+    
+    // Import farms
+    if (data.farms && Array.isArray(data.farms)) {
+      for (const farm of data.farms) {
+        await saveFarm(farm);
+      }
+    }
+    
+    // Import expenses
+    if (data.expenses && Array.isArray(data.expenses)) {
+      for (const expense of data.expenses) {
+        await saveExpense(expense);
+      }
+    }
+    
+    // Restore selected farm
+    if (data.selectedFarmId) {
+      await setSelectedFarmId(data.selectedFarmId);
+    }
+    
+    const stats = {
+      farmsImported: data.farms?.length || 0,
+      expensesImported: data.expenses?.length || 0
+    };
+    
+    console.log(`[IndexedDB] Imported ${stats.farmsImported} farms and ${stats.expensesImported} expenses`);
+    return stats;
+  } catch (error) {
+    console.error('[IndexedDB] Error importing data:', error);
+    throw error;
+  }
+}
+
+/**
  * Export IndexedDB API that mimics localStorage but uses IndexedDB
  */
 const IndexedDBStorage = {
@@ -664,6 +753,8 @@ const IndexedDBStorage = {
   getActiveFarms,
   getCompletedFarms,
   migrateLegacyData,
+  exportAllData,
+  importAllData,
   initDB
 };
 
