@@ -19,6 +19,21 @@
         </header>
 
         <div class="manage-content">
+            <!-- Backup & Restore Section -->
+            <div class="backup-section">
+                <h3>Backup & Restore</h3>
+                <p style="font-size:0.9rem; color:white; margin-bottom:12px;">Keep your data safe by creating backups</p>
+                <div class="backup-buttons">
+                    <button class="backup-btn export-btn" onclick="exportBackup()">
+                        📥 Backup My Data
+                    </button>
+                    <button class="backup-btn import-btn" onclick="document.getElementById('importFile').click()">
+                        📤 Restore from Backup
+                    </button>
+                    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importBackup(event)">
+                </div>
+            </div>
+
             <div class="add-farm-section">
                 <button class="primary-btn" onclick="location.href='farm-setup.html'">
                     ➕ Add New Farm
@@ -255,6 +270,91 @@
             }
         }
 
+        // Export backup
+        async function exportBackup() {
+            try {
+                showNotification('Preparing backup...');
+                
+                const data = await IndexedDBStorage.exportAllData();
+                
+                // Create filename with current date
+                const dateStr = new Date().toISOString().split('T')[0];
+                const filename = `MADB-backup-${dateStr}.json`;
+                
+                // Convert to JSON string
+                const jsonString = JSON.stringify(data, null, 2);
+                
+                // Create blob and download
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showNotification(`✅ Backup saved: ${filename}`);
+            } catch (error) {
+                console.error('Error exporting backup:', error);
+                showNotification('❌ Failed to create backup');
+            }
+        }
+
+        // Import backup
+        async function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Check file type
+            if (!file.name.endsWith('.json')) {
+                showNotification('❌ Please select a valid JSON backup file');
+                return;
+            }
+            
+            try {
+                showNotification('Reading backup file...');
+                
+                const text = await file.text();
+                const data = JSON.parse(text);
+                
+                // Validate backup format
+                if (!data.version || !data.farms) {
+                    showNotification('❌ Invalid backup file format');
+                    return;
+                }
+                
+                // Confirm import
+                const farmsCount = data.farms?.length || 0;
+                const expensesCount = data.expenses?.length || 0;
+                const confirmMsg = `This backup contains:\n• ${farmsCount} farm(s)\n• ${expensesCount} expense(s)\n\n⚠️ This will REPLACE all your current data!\n\nContinue?`;
+                
+                if (!confirm(confirmMsg)) {
+                    showNotification('Import cancelled');
+                    event.target.value = ''; // Reset file input
+                    return;
+                }
+                
+                // Import data
+                showNotification('Restoring backup...');
+                const stats = await IndexedDBStorage.importAllData(data);
+                
+                showNotification(`✅ Restored ${stats.farmsImported} farms and ${stats.expensesImported} expenses`);
+                
+                // Reload the page to show imported data
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error importing backup:', error);
+                showNotification('❌ Failed to restore backup');
+            } finally {
+                event.target.value = ''; // Reset file input
+            }
+        }
+
         init();
 
         // Make functions global
@@ -262,6 +362,8 @@
         window.editFarm = editFarm;
         window.deleteFarmConfirm = deleteFarmConfirm;
         window.unmarkFarmCompleted = unmarkFarmCompleted;
+        window.exportBackup = exportBackup;
+        window.importBackup = importBackup;
     </script>
 
     <script>
