@@ -56,18 +56,18 @@ const RICE_CULTIVATION_STAGES = [
         desc: 'Apply fertilizers and pesticides on a schedule after transplanting. Resources calculated per hectare.',
         tip: 'Monitor the condition of the rice crop.',
         tasks: [
-            { text: 'Apply basal fertilizer (3 bags/ha) - wait 15 days for side dressing', offset: 31 },
+            { text: 'Apply first fertilizer - wait 15 days for side dressing', offset: 31 },
             { text: 'Apply pesticide every 2 weeks and adjust applications as needed', offset: 46 },
-            { text: 'Apply side dressing (3 bags/ha) - wait 30 days for top dressing ', offset: 46 },
-            { text: 'Apply top dressing (2 bags/ha)', offset: 76 }
+            { text: 'Apply side dressing - wait 30 days for top dressing ', offset: 46 },
+            { text: 'Apply top dressing', offset: 61 }
         ],
         resourcesPerHectare: {
             totalFertilizer: '8 bags',
             totalPesticide: '2 quarts',
             applications: [
                 { day: 15, fertilizer: '3 bags' },
-                { day: 45, fertilizer: '3 bags' },
-                { day: 90, fertilizer: '2 bags' }
+                { day: 30, fertilizer: '3 bags' },
+                { day: 45, fertilizer: '2 bags' }
             ]
         },
         offset: 46,
@@ -148,3 +148,4 @@ window.RiceStages = {
     calculateProgress,
     getDashboardStages
 };
+
