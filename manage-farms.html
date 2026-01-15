@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Farms - MADB</title>
+    <meta name="description" content="Manage your farm profiles">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+    <script src="js/db.js"></script>
+</head>
+<body class="manage-farms-page">
+    <div class="container">
+        <header>
+            <h2>Manage Farms</h2>
+            <div class="header-subtitle">View and edit your farm profiles</div>
+        </header>
+
+        <div class="manage-content">
+            <!-- Backup & Restore Section -->
+            <div class="backup-section">
+                <h3>Backup & Restore</h3>
+                <p style="font-size:0.9rem; color:white; margin-bottom:12px;">Keep your data safe by creating backups</p>
+                <div class="backup-buttons">
+                    <button class="backup-btn export-btn" onclick="exportBackup()">
+                        📥 Backup My Data
+                    </button>
+                    <button class="backup-btn import-btn" onclick="document.getElementById('importFile').click()">
+                        📤 Restore from Backup
+                    </button>
+                    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importBackup(event)">
+                </div>
+            </div>
+
+            <div class="add-farm-section">
+                <button class="primary-btn" onclick="location.href='farm-setup.html'">
+                    ➕ Add New Farm
+                </button>
+            </div>
+
+            <div id="farmsList" class="farms-list">
+                <div class="loading-message">Loading farms...</div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item">
+                <div class="nav-icon">🏠</div>
+                <div class="nav-label">Dashboard</div>
+            </a>
+            <a href="rice-guide.html" class="nav-item">
+                <div class="nav-icon">🌱</div>
+                <div class="nav-label">Rice Guide</div>
+            </a>
+            <a href="resource-tracker.html" class="nav-item">
+                <div class="nav-icon">💧</div>
+                <div class="nav-label">Resources</div>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Harvest Data Modal -->
+    <div id="harvestModal" class="modal">
+        <div class="modal-content harvest-modal">
+            <h3 id="harvestModalTitle">➕ Add Harvest Data</h3>
+            
+            <div class="modal-form-group">
+                <label for="harvestSaleDate">Sale Date <span style="color: red;">*</span></label>
+                <input type="date" id="harvestSaleDate" required>
+            </div>
+
+            <div class="modal-form-group">
+                <label for="harvestRevenue">Total Revenue (₱) <span style="color: red;">*</span></label>
+                <input type="number" id="harvestRevenue" min="0" step="0.01" required placeholder="e.g. 50000">
+            </div>
+
+            <div class="modal-form-group">
+                <label for="harvestNotes">Notes (optional)</label>
+                <textarea id="harvestNotes" rows="3" placeholder="e.g. Sold to local cooperative, Grade A quality"></textarea>
+            </div>
+
+            <div class="harvest-summary" id="harvestSummary" style="display: none;">
+                <div class="summary-row">
+                    <span>Total Revenue:</span>
+                    <span id="summaryRevenue" style="font-weight: bold; color: #4a7c59;">₱0</span>
+                </div>
+                <div class="summary-row">
+                    <span>Total Expenses:</span>
+                    <span id="summaryExpenses" style="font-weight: bold; color: #666;">₱0</span>
+                </div>
+                <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
+                <div class="summary-row">
+                    <span style="font-weight: bold; font-size: 1.1rem;">Net Profit:</span>
+                    <span id="summaryProfit" style="font-weight: bold; font-size: 1.1rem; color: #4a7c59;">₱0</span>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="primary-btn" onclick="saveHarvestData()">💾 Save</button>
+                <button class="secondary-btn" onclick="closeHarvestModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let farms = [];
+        let selectedFarmId = null;
+
+        function formatDate(date) {
+            return new Date(date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        async function loadFarms() {
+            try {
+                farms = await IndexedDBStorage.getAllFarms();
+                selectedFarmId = await IndexedDBStorage.getSelectedFarmId();
+                
+                if (farms.length === 0) {
+                    renderEmptyState();
+                } else {
+                    renderFarmsList();
+                }
+            } catch (error) {
+                console.error('Error loading farms:', error);
+                document.getElementById('farmsList').innerHTML = `
+                    <div class="error-message">Error loading farms. Please refresh the page.</div>
+                `;
+            }
+        }
+
+        function renderEmptyState() {
+            document.getElementById('farmsList').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🌾</div>
+                    <h3>No Farms Yet</h3>
+                    <p>Get started by adding your first farm profile.</p>
+                </div>
+            `;
+        }
+
+        function renderFarmsList() {
+            const farmsList = document.getElementById('farmsList');
+            
+            // Sort farms: active first, then completed
+            const sortedFarms = [...farms].sort((a, b) => {
+                const aCompleted = a.completed || false;
+                const bCompleted = b.completed || false;
+                if (aCompleted === bCompleted) return 0;
+                return aCompleted ? 1 : -1;
+            });
+            
+            farmsList.innerHTML = sortedFarms.map(farm => {
+                const isSelected = farm.id === selectedFarmId;
+                const isCompleted = farm.completed || false;
+                const hasHarvestData = farm.harvestData && farm.harvestData.revenue;
+                
+                return `
+                    <div class="farm-card ${isSelected ? 'selected' : ''} ${isCompleted ? 'completed' : ''}" data-farm-id="${farm.id}">
+                        <div class="farm-card-header">
+                            <div class="farm-card-title">
+                                <h3>${farm.name}</h3>
+                                ${isSelected ? '<span class="active-badge">Active</span>' : ''}
+                                ${isCompleted ? '<span class="completed-badge">✅ Completed</span>' : ''}
+                            </div>
+                            <div class="farm-card-actions">
+                                ${!isSelected ? `<button class="action-btn select-btn" onclick="selectFarm('${farm.id}')">Select</button>` : ''}
+                                <button class="action-btn edit-btn" onclick="editFarm('${farm.id}')">Edit</button>
+                                ${isCompleted ? 
+                                    `<button class="action-btn unmark-btn" onclick="unmarkFarmCompleted('${farm.id}')">Unmark</button>` : 
+                                    ''
+                                }
+                                <button class="action-btn delete-btn" onclick="deleteFarmConfirm('${farm.id}')">Delete</button>
+                            </div>
+                        </div>
+                        <div class="farm-card-details">
+                            <div class="farm-detail">
+                                <span class="detail-label">Size:</span>
+                                <span class="detail-value">${farm.size} hectares</span>
+                            </div>
+                            <div class="farm-detail">
+                                <span class="detail-label">Start Date:</span>
+                                <span class="detail-value">${formatDate(farm.startDate)}</span>
+                            </div>
+                            <div class="farm-detail">
+                                <span class="detail-label">Cropping:</span>
+                                <span class="detail-value">${farm.cropping}</span>
+                            </div>
+                            ${isCompleted && farm.completedDate ? `
+                            <div class="farm-detail">
+                                <span class="detail-label">Completed:</span>
+                                <span class="detail-value">${formatDate(farm.completedDate)}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${isCompleted ? `
+                            <div class="harvest-data-section">
+                                ${hasHarvestData ? `
+                                    <div class="harvest-summary-card">
+                                        <h4>📊 Harvest & Profit Summary</h4>
+                                        <div class="profit-details">
+                                            <div class="profit-row">
+                                                <span>Sale Date:</span>
+                                                <span>${formatDate(farm.harvestData.saleDate)}</span>
+                                            </div>
+                                            <div class="profit-row">
+                                                <span>Total Revenue:</span>
+                                                <span style="color: #4a7c59; font-weight: bold;">₱${farm.harvestData.revenue.toLocaleString()}</span>
+                                            </div>
+                                            <div class="profit-row">
+                                                <span>Total Expenses:</span>
+                                                <span style="color: #666;">₱${farm.harvestData.totalExpenses.toLocaleString()}</span>
+                                            </div>
+                                            <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
+                                            <div class="profit-row net-profit-row">
+                                                <span style="font-weight: bold; font-size: 1.05rem;">Net Profit:</span>
+                                                <span style="font-weight: bold; font-size: 1.1rem; color: ${farm.harvestData.netProfit >= 0 ? '#4a7c59' : '#e74c3c'};">
+                                                    ${farm.harvestData.netProfit >= 0 ? '₱' : '-₱'}${Math.abs(farm.harvestData.netProfit).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            ${farm.harvestData.notes ? `
+                                            <div class="profit-notes">
+                                                <strong>Notes:</strong> ${farm.harvestData.notes}
+                                            </div>
+                                            ` : ''}
+                                        </div>
+                                        <button class="harvest-action-btn edit-harvest-btn" onclick="openHarvestModal('${farm.id}')">
+                                            ✏️ Edit Harvest Data
+                                        </button>
+                                    </div>
+                                ` : `
+                                    <div class="no-harvest-data">
+                                        <p>📊 No harvest data yet</p>
+                                        <button class="harvest-action-btn add-harvest-btn" onclick="openHarvestModal('${farm.id}')">
+                                            ➕ Add Harvest Data
+                                        </button>
+                                    </div>
+                                `}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function selectFarm(farmId) {
+            try {
+                await IndexedDBStorage.setSelectedFarmId(farmId);
+                selectedFarmId = farmId;
+                renderFarmsList();
+                
+                // Show success message
+                showNotification('Farm selected successfully!');
+            } catch (error) {
+                console.error('Error selecting farm:', error);
+                alert('Error selecting farm. Please try again.');
+            }
+        }
+
+        function editFarm(farmId) {
+            window.location.href = `farm-setup.html?edit=${farmId}`;
+        }
+
+        async function deleteFarmConfirm(farmId) {
+            const farm = farms.find(f => f.id === farmId);
+            if (!farm) return;
+
+            const isSelected = farmId === selectedFarmId;
+            
+            let confirmMessage = `Are you sure you want to delete "${farm.name}"?\n\n`;
+            confirmMessage += 'This will also delete all expenses associated with this farm.\n';
+            confirmMessage += 'This action cannot be undone.';
+
+            if (isSelected && farms.length > 1) {
+                confirmMessage += '\n\nNote: This is your active farm. Another farm will be selected automatically.';
+            }
+
+            if (!confirm(confirmMessage)) return;
+
+            try {
+                // Delete the farm and its expenses
+                await IndexedDBStorage.deleteExpensesByFarm(farmId);
+                await IndexedDBStorage.deleteFarm(farmId);
+
+                // If this was the selected farm, select another one
+                if (isSelected) {
+                    const remainingFarms = farms.filter(f => f.id !== farmId);
+                    if (remainingFarms.length > 0) {
+                        await IndexedDBStorage.setSelectedFarmId(remainingFarms[0].id);
+                    } else {
+                        await IndexedDBStorage.setSelectedFarmId(null);
+                    }
+                }
+
+                // Reload farms list
+                await loadFarms();
+                showNotification('Farm deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting farm:', error);
+                alert('Error deleting farm. Please try again.');
+            }
+        }
+
+        async function unmarkFarmCompleted(farmId) {
+            const farm = farms.find(f => f.id === farmId);
+            if (!farm) return;
+
+            const confirmed = confirm(
+                `Unmark "${farm.name}" as completed?\n\n` +
+                `This will reactivate the farm and allow you to add new expenses again.`
+            );
+
+            if (!confirmed) return;
+
+            try {
+                await IndexedDBStorage.markFarmActive(farmId);
+                await loadFarms();
+                showNotification(`Farm "${farm.name}" is now active again!`);
+            } catch (error) {
+                console.error('Error unmarking farm as completed:', error);
+                alert('Error unmarking farm. Please try again.');
+            }
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Wait for IndexedDB to be ready
+        async function init() {
+            try {
+                await new Promise((resolve) => {
+                    const check = () => {
+                        if (window.IndexedDBStorage) {
+                            resolve();
+                        } else {
+                            setTimeout(check, 50);
+                        }
+                    };
+                    check();
+                });
+
+                await loadFarms();
+            } catch (error) {
+                console.error('Error initializing manage farms page:', error);
+            }
+        }
+
+        // Export backup
+        async function exportBackup() {
+            try {
+                showNotification('Preparing backup...');
+                
+                const data = await IndexedDBStorage.exportAllData();
+                
+                // Create filename with current date
+                const dateStr = new Date().toISOString().split('T')[0];
+                const filename = `MADB-backup-${dateStr}.json`;
+                
+                // Convert to JSON string
+                const jsonString = JSON.stringify(data, null, 2);
+                
+                // Create blob and download
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showNotification(`✅ Backup saved: ${filename}`);
+            } catch (error) {
+                console.error('Error exporting backup:', error);
+                showNotification('❌ Failed to create backup');
+            }
+        }
+
+        // Import backup
+        async function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Check file type
+            if (!file.name.endsWith('.json')) {
+                showNotification('❌ Please select a valid JSON backup file');
+                return;
+            }
+            
+            try {
+                showNotification('Reading backup file...');
+                
+                const text = await file.text();
+                const data = JSON.parse(text);
+                
+                // Validate backup format
+                if (!data.version || !data.farms) {
+                    showNotification('❌ Invalid backup file format');
+                    return;
+                }
+                
+                // Confirm import
+                const farmsCount = data.farms?.length || 0;
+                const expensesCount = data.expenses?.length || 0;
+                const confirmMsg = `This backup contains:\n• ${farmsCount} farm(s)\n• ${expensesCount} expense(s)\n\n⚠️ This will REPLACE all your current data!\n\nContinue?`;
+                
+                if (!confirm(confirmMsg)) {
+                    showNotification('Import cancelled');
+                    event.target.value = ''; // Reset file input
+                    return;
+                }
+                
+                // Import data
+                showNotification('Restoring backup...');
+                const stats = await IndexedDBStorage.importAllData(data);
+                
+                showNotification(`✅ Restored ${stats.farmsImported} farms and ${stats.expensesImported} expenses`);
+                
+                // Reload the page to show imported data
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error importing backup:', error);
+                showNotification('❌ Failed to restore backup');
+            } finally {
+                event.target.value = ''; // Reset file input
+            }
+        }
+
+        // Harvest data management
+        let currentHarvestFarmId = null;
+
+        async function openHarvestModal(farmId) {
+            const farm = farms.find(f => f.id === farmId);
+            if (!farm) return;
+            
+            currentHarvestFarmId = farmId;
+            const modal = document.getElementById('harvestModal');
+            const modalTitle = document.getElementById('harvestModalTitle');
+            const hasHarvestData = farm.harvestData && farm.harvestData.revenue;
+            
+            // Set modal title
+            modalTitle.textContent = hasHarvestData ? '✏️ Edit Harvest Data' : '➕ Add Harvest Data';
+            
+            // Pre-fill form if editing
+            if (hasHarvestData) {
+                document.getElementById('harvestSaleDate').value = farm.harvestData.saleDate;
+                document.getElementById('harvestRevenue').value = farm.harvestData.revenue;
+                document.getElementById('harvestNotes').value = farm.harvestData.notes || '';
+            } else {
+                // Clear form for new entry
+                document.getElementById('harvestSaleDate').value = new Date().toISOString().split('T')[0];
+                document.getElementById('harvestRevenue').value = '';
+                document.getElementById('harvestNotes').value = '';
+            }
+            
+            // Set up revenue input listener
+            const revenueInput = document.getElementById('harvestRevenue');
+            revenueInput.removeEventListener('input', updateHarvestSummary);
+            revenueInput.addEventListener('input', updateHarvestSummary);
+            
+            // Show modal and update summary
+            requestAnimationFrame(() => {
+                modal.classList.add('modal-show');
+                updateHarvestSummary();
+            });
+        }
+
+        async function updateHarvestSummary() {
+            const revenue = parseFloat(document.getElementById('harvestRevenue').value) || 0;
+            
+            if (!currentHarvestFarmId) return;
+            
+            // Get total expenses for the farm
+            const expenses = await IndexedDBStorage.getExpensesByFarm(currentHarvestFarmId);
+            const totalExpenses = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+            const netProfit = revenue - totalExpenses;
+            
+            // Update summary display
+            document.getElementById('summaryRevenue').textContent = `₱${revenue.toLocaleString()}`;
+            document.getElementById('summaryExpenses').textContent = `₱${totalExpenses.toLocaleString()}`;
+            document.getElementById('summaryProfit').textContent = `₱${netProfit.toLocaleString()}`;
+            document.getElementById('summaryProfit').style.color = netProfit >= 0 ? '#4a7c59' : '#e74c3c';
+            
+            // Show summary if revenue is entered
+            document.getElementById('harvestSummary').style.display = revenue > 0 ? 'block' : 'none';
+        }
+
+        async function saveHarvestData() {
+            const saleDate = document.getElementById('harvestSaleDate').value;
+            const revenue = parseFloat(document.getElementById('harvestRevenue').value);
+            
+            // Validate required fields
+            if (!saleDate || !revenue || revenue <= 0) {
+                showNotification('❌ Please fill in Sale Date and Revenue');
+                return;
+            }
+            
+            if (!currentHarvestFarmId) {
+                showNotification('❌ Error: Farm not found');
+                return;
+            }
+            
+            try {
+                const notes = document.getElementById('harvestNotes').value.trim();
+                
+                const harvestData = {
+                    saleDate,
+                    revenue,
+                    notes
+                };
+                
+                await IndexedDBStorage.saveHarvestData(currentHarvestFarmId, harvestData);
+                
+                closeHarvestModal();
+                showNotification('✅ Harvest data saved successfully!');
+                
+                // Reload farms to show updated data
+                await loadFarms();
+            } catch (error) {
+                console.error('Error saving harvest data:', error);
+                showNotification('❌ Failed to save harvest data');
+            }
+        }
+
+        function closeHarvestModal() {
+            const modal = document.getElementById('harvestModal');
+            modal.classList.remove('modal-show');
+            currentHarvestFarmId = null;
+        }
+
+        init();
+
+        // Make functions global
+        window.selectFarm = selectFarm;
+        window.editFarm = editFarm;
+        window.deleteFarmConfirm = deleteFarmConfirm;
+        window.unmarkFarmCompleted = unmarkFarmCompleted;
+        window.exportBackup = exportBackup;
+        window.importBackup = importBackup;
+        window.openHarvestModal = openHarvestModal;
+        window.saveHarvestData = saveHarvestData;
+        window.closeHarvestModal = closeHarvestModal;
+    </script>
+
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
+
+

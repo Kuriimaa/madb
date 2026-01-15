@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MADB - Farm Inputs & Expenses</title>
+    <meta name="description" content="Track farm expenses and inputs for rice cultivation">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+    <script>
+        // Dev helper: unregister service workers early to avoid stale cached HTML on localhost
+        (function() {
+            try {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then(regs => {
+                            regs.forEach(r => {
+                                console.log('Dev: unregistering service worker (head):', r);
+                                r.unregister();
+                            });
+                        }).catch(e => console.warn('Failed to get registrations (head):', e));
+                    }
+                }
+            } catch (e) {
+                console.warn('Service worker unregister in head failed:', e);
+            }
+        })();
+    </script>
+</head>
+<body class="resource-page">
+    <div class="app-container">
+        <header>
+            <h2>MagtanimAyDiBiro</h2>
+            <div class="header-subtitle">Farm Management System</div>
+        </header>
+        <div id="resourceFarmSummary"></div>
+        <div id="resourceContent">
+            <h2 id="resourceTitle" style="text-align:center; margin: 20px;">Farm Inputs and Expenses</h2>
+            
+            
+            
+            <div class="expense-summary">
+                <div class="month-selector">
+                    <div><strong id="expenseCropping" class="cropping-label-expense">First Cropping</strong></div>
+                </div>
+                
+                <div class="chart-container" style="position:relative;">
+                    <canvas id="expenseChart"></canvas>
+                    <div id="chartPlaceholder" class="chart-placeholder">
+                        No expenses yet
+                    </div>
+                </div>
+                
+                <div class="expense-total">
+                    <div>Total Expenses</div>
+                    <div><strong id="expenseTotal">₱4,850</strong></div>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tbody id="categoryTableBody"></tbody>
+                </table>
+            </div>
+            
+            <h3 style="margin: 20px 20px 10px 20px;">Recent Expenses</h3>
+            
+            <div class="expense-list" id="expenseList"></div>
+        </div>
+        
+        <button class="add-expense-btn" id="addExpenseBtn">
+            <span>+</span>
+        </button>
+        
+        <div class="modal-overlay" id="expenseModal">
+            <div class="expense-modal">
+                <h3 id="modalTitle">Add Expense</h3>
+                <form id="expenseForm" class="modal-form">
+                    <input type="hidden" id="expenseId">
+                    <div>
+                        <label for="expenseName" style="font-weight:bold;">Expense Detail</label>
+                        <input type="text" id="expenseName" required placeholder="e.g. Triple 14">
+                    </div>
+                    <div>
+                        <label for="expenseCategory" style="font-weight:bold;">Category</label>
+                        <select id="expenseCategory" required>
+                            <option value="Seeds/Seedlings">Seeds / Seedlings</option>
+                            <option value="Fertilizer">Fertilizer</option>
+                            <option value="Pesticides">Pesticides</option>
+                            <option value="Equipment">Equipment</option>
+                            <option value="Labor">Labor</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div id="customCategoryField" style="display: none;">
+                        <label for="customCategory" style="font-weight:bold;">Specify Category</label>
+                        <input type="text" id="customCategory" placeholder="e.g.Transportation">
+                    </div>
+                    <div>
+                        <label for="expenseDate" style="font-weight:bold;">Date</label>
+                        <input type="date" id="expenseDate" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label for="expenseQuantity" style="font-weight:bold;">Quantity</label>
+                            <input type="number" id="expenseQuantity" required min="0" step="0.01" placeholder="e.g. 10">
+                        </div>
+                        <div>
+                            <label for="expenseUnit" style="font-weight:bold;">Unit</label>
+                            <input type="text" id="expenseUnit" required placeholder="e.g. bags, kg">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="expenseAmount" style="font-weight:bold;">Amount (₱)</label>
+                        <input type="number" id="expenseAmount" required min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="cancel-btn" id="cancelExpenseBtn">Cancel</button>
+                        <button type="submit" class="save-btn">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <nav class="bottom-nav">
+            <a href="dashboard.html" class="nav-item">
+                <div class="nav-icon">🏠</div>
+                <div class="nav-label">Dashboard</div>
+            </a>
+            <a href="rice-guide.html" class="nav-item">
+                <div class="nav-icon">🌱</div>
+                <div class="nav-label">Rice Guide</div>
+            </a>
+            <a href="resource-tracker.html" class="nav-item active">
+                <div class="nav-icon">💧</div>
+                <div class="nav-label">Resources</div>
+            </a>
+        </nav>
+    </div>
+    
+    <script src="js/db.js"></script>
+
+    <script>
+        const EXPENSE_STORAGE_KEY = 'expenseEntries';
+        let expenseEntries = [];
+        let expenseChart = null;
+        let currentFarmInfo = null; // Store current farm info for expense tracking
+
+        async function loadFarmInfo() {
+            try {
+                const start = Date.now();
+                while (!window.IndexedDBStorage && Date.now() - start < 3000) {
+                    await new Promise(r => setTimeout(r, 50));
+                }
+                
+                if (!window.IndexedDBStorage) {
+                    console.error('IndexedDB not ready');
+                    return null;
+                }
+
+                // Get selected farm ID
+                const selectedFarmId = await IndexedDBStorage.getSelectedFarmId();
+                
+                if (!selectedFarmId) {
+                    // Try legacy farmInfo for backward compatibility
+                    const legacyFarm = await MADBStorage.getItem('farmInfo');
+                    return legacyFarm;
+                }
+
+                // Load the selected farm
+                const farm = await IndexedDBStorage.getFarm(selectedFarmId);
+                return farm;
+            } catch (error) {
+                console.error('Error loading farm info:', error);
+                return null;
+            }
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function renderFarmSummary(targetId, farmInfo) {
+            const mount = document.getElementById(targetId);
+            mount.innerHTML = `
+                <div class="farm-summary-card">
+                    <h4>${farmInfo.name}</h4>
+                    <div class="farm-meta">
+                        Size: <strong>${farmInfo.size} ha</strong><br>
+                        Start Date: <strong>${formatDate(new Date(farmInfo.startDate))}</strong><br>
+                        Cropping: <strong>${farmInfo.cropping}</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadExpenses(farmId = null) {
+            try {
+                console.log('Loading expenses from IndexedDB...');
+                if (window.IndexedDBStorage) {
+                    // Load expenses filtered by farm if farmId is provided
+                    const expenses = farmId 
+                        ? await IndexedDBStorage.getExpensesByFarm(farmId)
+                        : await IndexedDBStorage.getAllExpenses();
+                    console.log('Loaded expenses via helper:', expenses.length, 'items');
+                    return expenses;
+                }
+                console.log('IndexedDB helper not available, falling back to direct IndexedDB access');
+                const direct = await (async function directGetAllExpenses() {
+                    return new Promise((resolve) => {
+                        try {
+                            const req = indexedDB.open('MADB');
+                            req.onsuccess = (e) => {
+                                const db = e.target.result;
+                                try {
+                                    if (!db.objectStoreNames.contains('expenses')) return resolve([]);
+                                    const tx = db.transaction(['expenses'], 'readonly');
+                                    const store = tx.objectStore('expenses');
+                                    const getReq = store.getAll();
+                                    getReq.onsuccess = () => resolve(getReq.result || []);
+                                    getReq.onerror = () => resolve([]);
+                                } catch (err) {
+                                    resolve([]);
+                                }
+                            };
+                            req.onerror = () => resolve([]);
+                        } catch (err) {
+                            resolve([]);
+                        }
+                    });
+                })();
+                console.log('Loaded expenses via direct IndexedDB:', direct.length, 'items');
+                return direct;
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+                return [];
+            }
+        }
+
+        async function saveExpenses() {
+            try {
+                // Clear existing expenses and save all current ones
+                // Note: In a production app, you'd want to be more efficient
+                // For now, we'll save each expense individually
+                for (const expense of expenseEntries) {
+                    await IndexedDBStorage.saveExpense(expense);
+                }
+            } catch (error) {
+                console.error('Error saving expenses:', error);
+            }
+        }
+
+        function formatAmount(value) {
+            return `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        function renderExpenseList() {
+            const list = document.getElementById('expenseList');
+            if (!expenseEntries.length) {
+                list.innerHTML = `<div class="empty-list-message">No expenses recorded yet.</div>`;
+                return;
+            }
+            const isCompleted = currentFarmInfo && (currentFarmInfo.completed || false);
+            const sorted = [...expenseEntries].sort((a, b) => new Date(b.date) - new Date(a.date));
+            list.innerHTML = sorted.map(entry => {
+                // Build quantity/unit display (shown below date/category)
+                let quantityDisplay = '';
+                if (entry.quantity && entry.unit) {
+                    quantityDisplay = `<div class="expense-quantity">${entry.quantity} ${entry.unit}</div>`;
+                } else if (entry.quantity) {
+                    quantityDisplay = `<div class="expense-quantity">${entry.quantity}</div>`;
+                }
+                
+                return `
+                <div class="expense-item">
+                    <div class="expense-details">
+                        <div style="font-weight:bold;">${entry.name}</div>
+                        <div class="expense-date">${formatDate(new Date(entry.date))} • ${entry.category}</div>
+                        ${quantityDisplay}
+                    </div>
+                    <div class="expense-item-actions">
+                        <div class="expense-amount">${formatAmount(entry.amount)}</div>
+                        ${!isCompleted ? `
+                        <button class="expense-edit-btn" onclick="openExpenseModal('${entry.id}')">Edit</button>
+                        <button class="expense-delete-btn" onclick="deleteExpenseUI('${entry.id}')">Delete</button>
+                        ` : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // Deletes an expense and updates the UI immediately
+        async function deleteExpenseUI(expenseId) {
+            console.log('Deleting expense (UI):', expenseId);
+            if (!confirm('Are you sure you want to delete this expense?')) return;
+
+            // Optimistic UI update: remove locally and re-render immediately
+            const idx = expenseEntries.findIndex(e => e.id === expenseId);
+            if (idx === -1) {
+                console.warn('Expense not found in memory:', expenseId);
+                return;
+            }
+            const [removed] = expenseEntries.splice(idx, 1);
+            renderExpenseList();
+            recalculateSummary();
+
+            try {
+                if (window.IndexedDBStorage && IndexedDBStorage.deleteExpense) {
+                    await IndexedDBStorage.deleteExpense(expenseId);
+                } else {
+                    // direct delete via IndexedDB
+                    await (async function directDelete(id) {
+                        return new Promise((resolve, reject) => {
+                            try {
+                                const req = indexedDB.open('MADB');
+                                req.onsuccess = (e) => {
+                                    const db = e.target.result;
+                                    try {
+                                        if (!db.objectStoreNames.contains('expenses')) return resolve();
+                                        const tx = db.transaction(['expenses'], 'readwrite');
+                                        const store = tx.objectStore('expenses');
+                                        const delReq = store.delete(id);
+                                        delReq.onsuccess = () => resolve();
+                                        delReq.onerror = () => reject(delReq.error || new Error('Delete failed'));
+                                    } catch (err) {
+                                        reject(err);
+                                    }
+                                };
+                                req.onerror = () => reject(req.error || new Error('DB open failed'));
+                            } catch (err) { reject(err); }
+                        });
+                    })(expenseId);
+                }
+                console.log('Delete completed successfully (UI optimistic)');
+            } catch (error) {
+                // Revert optimistic change on failure
+                console.error('Error deleting expense, reverting UI:', error);
+                expenseEntries.splice(idx, 0, removed);
+                renderExpenseList();
+                recalculateSummary();
+                alert('Error deleting expense. Please try again.');
+            }
+        }
+
+        function renderCategoryTable(totals) {
+            const tbody = document.getElementById('categoryTableBody');
+            const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+            if (!entries.length) {
+                tbody.innerHTML = `<tr><td colspan="2" class="empty-table-message">No category breakdown yet.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = entries.map(([category, amount]) => `
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 8px 0;">${category}</td>
+                    <td style="text-align: right; padding: 8px 0;">${formatAmount(amount)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateChart(totals) {
+            const labels = Object.keys(totals);
+            const data = Object.values(totals);
+            const hasData = data.some(value => value > 0);
+            const canvas = document.getElementById('expenseChart');
+            const placeholder = document.getElementById('chartPlaceholder');
+
+            if (!hasData) {
+                placeholder.style.display = 'flex';
+                canvas.style.display = 'none';
+                if (expenseChart) {
+                    expenseChart.destroy();
+                    expenseChart = null;
+                }
+                return;
+            }
+
+            placeholder.style.display = 'none';
+            canvas.style.display = 'block';
+
+            if (expenseChart) {
+                expenseChart.destroy();
+            }
+
+            expenseChart = new Chart(canvas.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: ['#4a7c59', '#8fb996', '#3d85c6', '#e6a23c', '#b8b8ff'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 10,
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${formatAmount(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        function recalculateSummary() {
+            const totals = {};
+            let monthlyTotal = 0;
+            expenseEntries.forEach(entry => {
+                const amount = Number(entry.amount);
+                monthlyTotal += amount;
+                totals[entry.category] = (totals[entry.category] || 0) + amount;
+            });
+            document.getElementById('expenseTotal').textContent = formatAmount(monthlyTotal);
+            renderCategoryTable(totals);
+            updateChart(totals);
+        }
+
+        function openExpenseModal(expenseId = null) {
+            const modal = document.getElementById('expenseModal');
+            const form = document.getElementById('expenseForm');
+            const title = document.getElementById('modalTitle');
+            form.reset();
+            
+            // Hide custom category field initially
+            document.getElementById('customCategoryField').style.display = 'none';
+            document.getElementById('customCategory').required = false;
+            
+            if (expenseId) {
+                const entry = expenseEntries.find(e => e.id === expenseId);
+                if (!entry) return;
+                title.textContent = 'Edit Expense';
+                document.getElementById('expenseId').value = entry.id;
+                document.getElementById('expenseName').value = entry.name;
+                document.getElementById('expenseCategory').value = entry.category;
+                document.getElementById('expenseDate').value = entry.date;
+                document.getElementById('expenseAmount').value = entry.amount;
+                document.getElementById('expenseQuantity').value = entry.quantity || '';
+                document.getElementById('expenseUnit').value = entry.unit || '';
+                
+                // Check if category is a custom one (not in predefined list)
+                const predefinedCategories = ['Seeds/Seedlings', 'Fertilizer', 'Pesticides', 'Equipment', 'Labor', 'Other'];
+                if (!predefinedCategories.includes(entry.category)) {
+                    // It's a custom category
+                    document.getElementById('expenseCategory').value = 'Other';
+                    document.getElementById('customCategory').value = entry.category;
+                    document.getElementById('customCategoryField').style.display = 'block';
+                    document.getElementById('customCategory').required = true;
+                }
+            } else {
+                title.textContent = 'Add Expense';
+                document.getElementById('expenseId').value = '';
+                document.getElementById('expenseDate').valueAsDate = new Date();
+            }
+            modal.classList.add('active');
+        }
+
+        function closeExpenseModal() {
+            document.getElementById('expenseModal').classList.remove('active');
+        }
+
+        async function handleExpenseSubmit(event) {
+            event.preventDefault();
+            const idInput = document.getElementById('expenseId').value;
+            const name = document.getElementById('expenseName').value.trim();
+            let category = document.getElementById('expenseCategory').value;
+            const date = document.getElementById('expenseDate').value;
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+            const quantity = parseFloat(document.getElementById('expenseQuantity').value);
+            const unit = document.getElementById('expenseUnit').value.trim();
+
+            // Use custom category if "Other" is selected and custom category is provided
+            if (category === 'Other') {
+                const customCategory = document.getElementById('customCategory').value.trim();
+                if (customCategory) {
+                    category = customCategory;
+                }
+            }
+
+            if (!name || !date || isNaN(amount) || isNaN(quantity) || !unit) {
+                alert('Please fill in all required fields.');
+                return;
+            }
+
+            const expenseData = {
+                id: idInput || `exp_${Date.now()}`,
+                name,
+                category,
+                date,
+                amount,
+                quantity,
+                unit,
+                farmId: currentFarmInfo ? currentFarmInfo.id : null
+            };
+
+            try {
+                await IndexedDBStorage.saveExpense(expenseData);
+                // Reload expenses from IndexedDB to ensure UI is in sync
+                expenseEntries = await loadExpenses(currentFarmInfo ? currentFarmInfo.id : null);
+                renderExpenseList();
+                recalculateSummary();
+                closeExpenseModal();
+            } catch (error) {
+                console.error('Error saving expense:', error);
+                alert('Error saving expense. Please try again.');
+            }
+        }
+
+        async function ensureIndexedDBReady(timeout = 3000) {
+            if (window.IndexedDBStorage && window.MADBStorage) return;
+            return new Promise((resolve, reject) => {
+                const start = Date.now();
+                const check = () => {
+                    if (window.IndexedDBStorage && window.MADBStorage) return resolve();
+                    if (Date.now() - start > timeout) return reject(new Error('IndexedDB not ready'));
+                    setTimeout(check, 50);
+                };
+                check();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('Resource tracker page loaded');
+            console.log('IndexedDBStorage available:', !!window.IndexedDBStorage);
+            console.log('MADBStorage available:', !!window.MADBStorage);
+
+            try {
+                await ensureIndexedDBReady();
+            } catch (e) {
+                console.warn('IndexedDBStorage not ready before init, continuing and will recover when available', e);
+            }
+
+            const farmInfo = await loadFarmInfo();
+            console.log('Farm info loaded:', farmInfo);
+
+            const resourceContent = document.getElementById('resourceContent');
+            const addExpenseBtn = document.getElementById('addExpenseBtn');
+
+            if (!farmInfo) {
+                resourceContent.innerHTML = `
+                    <div class="missing-farm-info">
+                        <h3>Set up your farm first</h3>
+                        <p>Please enter your farm details to get started.</p>
+                        <a class="primary-btn" href="farm-setup.html">Go to Farm Setup</a>
+                    </div>
+                `;
+                // Hide the add expense button when no farm is set up
+                addExpenseBtn.style.display = 'none';
+                return;
+            }
+
+            // Store current farm info for expense tracking
+            currentFarmInfo = farmInfo;
+
+            renderFarmSummary('resourceFarmSummary', farmInfo);
+            document.getElementById('resourceTitle').textContent = `Farm Inputs and Expenses — ${farmInfo.name}`;
+            // Show "First Cropping" or "Second Cropping" based on user-provided farmInfo.cropping
+            const croppingRaw = (farmInfo.cropping || '').toString().toLowerCase();
+            const croppingLabel = (croppingRaw.includes('second') || croppingRaw.includes('2')) ? 'Second Cropping' : 'First Cropping';
+            document.getElementById('expenseCropping').textContent = croppingLabel;
+
+            expenseEntries = await loadExpenses(farmInfo.id);
+            renderExpenseList();
+            recalculateSummary();
+
+            // Check if farm is completed and disable add expense button if so
+            const isCompleted = farmInfo.completed || false;
+            
+            if (isCompleted) {
+                addExpenseBtn.style.display = 'none';
+                // Show completed farm notice
+                const resourceTitle = document.getElementById('resourceTitle');
+                resourceTitle.innerHTML += ' <span style="color:#888; font-size:0.9rem;">(✅ Completed - View Only)</span>';
+            } else {
+                addExpenseBtn.style.display = 'block';
+                addExpenseBtn.addEventListener('click', () => openExpenseModal());
+            }
+
+            document.getElementById('cancelExpenseBtn').addEventListener('click', closeExpenseModal);
+            document.getElementById('expenseModal').addEventListener('click', (e) => {
+                if (e.target.id === 'expenseModal') {
+                    closeExpenseModal();
+                }
+            });
+            document.getElementById('expenseForm').addEventListener('submit', handleExpenseSubmit);
+            
+            // Show/hide custom category field based on selection
+            document.getElementById('expenseCategory').addEventListener('change', (e) => {
+                const customCategoryField = document.getElementById('customCategoryField');
+                const customCategoryInput = document.getElementById('customCategory');
+                
+                if (e.target.value === 'Other') {
+                    customCategoryField.style.display = 'block';
+                    customCategoryInput.required = true;
+                } else {
+                    customCategoryField.style.display = 'none';
+                    customCategoryInput.required = false;
+                    customCategoryInput.value = '';
+                }
+            });
+        });
+
+        window.openExpenseModal = openExpenseModal;
+        window.deleteExpenseUI = deleteExpenseUI;
+
+            // Global handlers to capture unexpected promise rejections and errors (helps debugging)
+            window.addEventListener('unhandledrejection', (evt) => {
+                console.error('Unhandled promise rejection (resource-tracker):', evt.reason, evt);
+            });
+            window.addEventListener('error', (evt) => {
+                console.error('Global error (resource-tracker):', evt.message, evt.error || evt);
+            });
+
+            // During development on localhost, unregister any service worker to avoid stale cached HTML
+            (async function unregisterSWInDev() {
+                try {
+                    if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                        if ('serviceWorker' in navigator) {
+                            const regs = await navigator.serviceWorker.getRegistrations();
+                            for (const reg of regs) {
+                                console.log('Unregistering service worker (dev):', reg);
+                                await reg.unregister();
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to unregister service worker in dev:', e);
+                }
+            })();
+    </script>
+
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

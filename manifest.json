@@ -1,0 +1,44 @@
+{
+  "name": "MagtanimAyDiBiro - Rice Farming Management",
+  "short_name": "MADB",
+  "description": "Step-by-step rice farming guidance and easy expense tracking for Bagabag farmers",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#4a7c59",
+  "theme_color": "#4a7c59",
+  "orientation": "portrait-primary",
+  "scope": "./",
+  "categories": ["productivity", "business", "lifestyle"],
+  "lang": "en-PH",
+  "icons": [
+    {
+      "src": "icon-192x192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View farm dashboard and progress",
+      "url": "./dashboard.html",
+      "icons": [{ "src": "icon-192x192.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Rice Guide",
+      "short_name": "Guide",
+      "description": "View rice cultivation guide",
+      "url": "./rice-guide.html",
+      "icons": [{ "src": "icon-192x192.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Resources",
+      "short_name": "Resources",
+      "description": "Track farm expenses",
+      "url": "./resource-tracker.html",
+      "icons": [{ "src": "icon-192x192.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    }
+  ]
+}

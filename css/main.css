@@ -1,0 +1,2043 @@
+:root {
+    --primary: #4a7c59;
+    --secondary: #8fb996;
+    --accent: #3d85c6;
+    --warn: #e6a23c;
+    --background: #f5f5f5;
+    --text: #333;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    color: var(--text);
+    background: var(--background);
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button,
+input,
+select {
+    font-family: inherit;
+}
+
+.primary-btn {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.primary-btn:hover {
+    background: #3a6245;
+}
+
+.primary-btn:active {
+    background: var(--accent);
+}
+
+.farm-summary-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 16px 18px;
+    color: var(--primary);
+    margin: 0 20px 20px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+}
+
+.farm-summary-card h4 {
+    margin: 0 0 6px 0;
+    font-size: 1.05rem;
+    color: var(--accent);
+}
+
+.farm-summary-card .farm-meta {
+    font-size: 0.95rem;
+    color: #444;
+    line-height: 1.4;
+}
+
+.missing-farm-info {
+    text-align: center;
+    padding: 40px 24px;
+}
+
+.missing-farm-info h3 {
+    color: var(--accent);
+    font-size: 1.25rem;
+    margin: 0 0 16px 0;
+}
+
+.missing-farm-info p {
+    color: #555;
+    font-size: 1rem;
+    line-height: 1.5;
+    margin: 0 0 20px 0;
+}
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: space-around;
+    z-index: 100;
+}
+
+.nav-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px 0 6px 0;
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: background 0.2s;
+}
+
+.nav-item.active {
+    color: var(--accent);
+    font-weight: bold;
+    background: #f0f8ff;
+}
+
+.nav-icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.nav-label {
+    font-size: 0.95rem;
+}
+
+/* Welcome page */
+body.welcome-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+body.welcome-page .container {
+    max-width: 480px;
+    width: 100%;
+    min-height: 100vh;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+body.welcome-page .logo {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+body.welcome-page h1 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: var(--primary);
+}
+
+body.welcome-page .tagline {
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+    text-align: center;
+    color: var(--accent);
+}
+
+body.welcome-page .start-btn {
+    background: var(--primary);
+    color: white;
+    font-size: 1.2rem;
+    padding: 15px 40px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background 0.2s;
+}
+
+body.welcome-page .start-btn:active {
+    background: var(--accent);
+}
+
+/* Farm setup */
+body.farm-setup-page {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    background: var(--background);
+}
+
+body.farm-setup-page .container {
+    width: min(480px, 100%);
+    background: white;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+body.farm-setup-page header {
+    background: var(--primary);
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+body.farm-setup-page header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+body.farm-setup-page header .header-subtitle {
+    font-size: 1rem;
+    font-weight: normal;
+    margin-top: 4px;
+}
+
+body.farm-setup-page .form-container {
+    padding: 32px 24px;
+    flex: 1;
+}
+
+body.farm-setup-page .form-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+body.farm-setup-page form {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+body.farm-setup-page .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+body.farm-setup-page label {
+    font-weight: bold;
+    color: var(--accent);
+}
+
+body.farm-setup-page input,
+body.farm-setup-page select {
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+body.farm-setup-page button[type="submit"] {
+    background: var(--primary);
+    color: white;
+    font-size: 1.2rem;
+    padding: 15px 0;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background 0.2s;
+}
+
+body.farm-setup-page button[type="submit"]:hover {
+    background: #3a6245;
+}
+
+body.farm-setup-page button[type="submit"]:active {
+    background: var(--accent);
+}
+
+@media (min-width: 520px) {
+    body.farm-setup-page form {
+        gap: 22px;
+        max-width: 500px;
+    }
+    body.farm-setup-page .form-row {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        align-items: center;
+        gap: 16px;
+    }
+    body.farm-setup-page .form-row label {
+        text-align: right;
+        padding-right: 8px;
+    }
+}
+
+/* Dashboard */
+body.dashboard-page .container {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: white;
+    display: flex;
+    flex-direction: column;
+}
+
+body.dashboard-page header {
+    background: var(--primary);
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+body.dashboard-page header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+body.dashboard-page header .header-subtitle {
+    font-size: 1rem;
+    font-weight: normal;
+    margin-top: 4px;
+}
+
+body.dashboard-page .summary-section {
+    padding: 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+}
+
+body.dashboard-page .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(1, 2fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+body.dashboard-page .summary-card {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #eee;
+}
+
+body.dashboard-page .summary-card h3 {
+    color: var(--primary);
+    font-size: 1rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body.dashboard-page .progress-indicator {
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+body.dashboard-page .progress-bar {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+body.dashboard-page .next-action {
+    background: #e6a23c22;
+    color: var(--warn);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin-top: 10px;
+}
+
+body.dashboard-page .expense-overview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+body.dashboard-page .expense-item {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 3px solid var(--secondary);
+}
+
+body.dashboard-page .expense-item.total-expense {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e8f5e9 100%);
+    border-left-color: var(--primary);
+}
+
+body.dashboard-page .expense-label {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+body.dashboard-page .expense-amount {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+body.dashboard-page .expense-trend {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 5px;
+}
+
+body.dashboard-page .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 12px;
+    margin: 20px 0;
+}
+
+body.dashboard-page .quick-action-btn {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+body.dashboard-page .quick-action-btn:active {
+    background: #f0f8ff;
+}
+
+body.dashboard-page .quick-action-btn .icon {
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+}
+
+body.dashboard-page .quick-action-btn .label {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+body.dashboard-page .quick-action-btn.completed-farm-notice {
+    background: #f5f5f5;
+    border-color: #ddd;
+    cursor: default;
+    opacity: 0.8;
+}
+
+body.dashboard-page .quick-action-btn.completed-farm-notice:active {
+    background: #f5f5f5;
+}
+
+body.dashboard-page .quick-action-btn.completed-farm-notice .label {
+    color: #888;
+}
+
+body.dashboard-page .tiles {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 32px 20px 0 20px;
+    flex: 1;
+}
+
+body.dashboard-page .tile {
+    background: #f5f5f5;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    padding: 28px 18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: 1px solid #e0e0e0;
+}
+
+body.dashboard-page .tile:active {
+    background: #e6a23c22;
+}
+
+body.dashboard-page .tile-icon {
+    font-size: 2.2rem;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+body.dashboard-page .tile-content {
+    flex: 1;
+}
+
+body.dashboard-page .tile-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: var(--primary);
+}
+
+body.dashboard-page .tile-desc {
+    font-size: 1rem;
+    color: #555;
+}
+
+/* Rice guide */
+body.rice-guide-page .container {
+    width: min(480px, 100%);
+    margin: 0 auto;
+    min-height: 100vh;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 90px;
+}
+
+body.rice-guide-page header {
+    background: var(--primary);
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+body.rice-guide-page header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+body.rice-guide-page header .header-subtitle {
+    font-size: 1rem;
+    font-weight: normal;
+    margin-top: 4px;
+}
+
+body.rice-guide-page #guide {
+    padding: 20px;
+}
+
+body.rice-guide-page .stage-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border: 1px solid #f0f0f0;
+}
+
+body.rice-guide-page .stage-card h3 {
+    font-size: 1.25rem;
+    color: var(--accent);
+    margin: 0 0 12px 0;
+}
+
+body.rice-guide-page .stage-card p {
+    margin: 0 0 12px 0;
+    line-height: 1.5;
+}
+
+body.rice-guide-page .stage-tip {
+    background: #e6a23c22;
+    color: var(--warn);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.98rem;
+    margin-bottom: 12px;
+}
+
+body.rice-guide-page .stage-schedule {
+    color: var(--primary);
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+body.rice-guide-page .substage-list {
+    margin: 12px 0;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+body.rice-guide-page .substage-item {
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+}
+
+body.rice-guide-page .substage-item:last-child {
+    margin-bottom: 0;
+}
+
+body.rice-guide-page .checklist label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 1rem;
+}
+
+body.rice-guide-page .section-divider {
+    border: none;
+    border-top: 1px solid #ececec;
+    margin: 20px 0;
+}
+
+/* Resource tracker */
+body.resource-page .app-container {
+    max-width: 480px;
+    margin: 0 auto;
+    background: white;
+    min-height: 100vh;
+    padding-bottom: 60px;
+}
+
+body.resource-page header {
+    background: var(--primary);
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+body.resource-page header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+body.resource-page header .header-subtitle {
+    font-size: 1rem;
+    font-weight: normal;
+    margin-top: 4px;
+}
+
+body.resource-page .resource-tabs {
+    display: flex;
+    background: #f0f0f0;
+    margin: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+body.resource-page .tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    cursor: pointer;
+}
+
+body.resource-page .tab.active {
+    background: var(--primary);
+    color: white;
+}
+
+body.resource-page .expense-summary {
+    background: white;
+    margin: 20px;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+body.resource-page .month-selector {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+body.resource-page .chart-container {
+    height: 220px;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+body.resource-page .chart-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 1rem;
+}
+
+body.resource-page .empty-list-message {
+    text-align: center;
+    color: #888;
+    padding: 20px 0;
+    font-size: 1rem;
+}
+
+body.resource-page .empty-table-message {
+    text-align: center;
+    padding: 12px;
+    color: #888;
+    font-size: 0.95rem;
+}
+
+body.resource-page .expense-total {
+    text-align: center;
+    margin: 15px 0;
+    font-size: 24px;
+}
+
+body.resource-page .expense-list {
+    margin: 20px;
+    padding-bottom: 80px; /* Add space for the floating add button */
+}
+
+body.resource-page .expense-item {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+body.resource-page .expense-details {
+    display: flex;
+    flex-direction: column;
+}
+
+body.resource-page .expense-date {
+    color: #777;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+body.resource-page .expense-quantity {
+    color: var(--primary);
+    font-size: 13px;
+    margin-top: 4px;
+    font-weight: 600;
+}
+
+body.resource-page .expense-amount {
+    font-weight: bold;
+    color: var(--text);
+}
+
+body.resource-page .expense-item-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+}
+
+body.resource-page  {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0;
+}
+
+body.resource-page .add-expense-btn {
+    position: fixed;
+    bottom: 75px;
+    right: 20px;
+    background: var(--primary);
+    color: white;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+body.resource-page .add-expense-btn span {
+    font-size: 32px;
+    font-weight: 300;
+    line-height: 1;
+    display: block;
+    margin-top: -2px;
+}
+
+body.resource-page .add-expense-btn:hover {
+    background: #3a6245;
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
+body.resource-page .add-expense-btn:active {
+    transform: scale(0.95);
+}
+
+body.resource-page .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+}
+
+body.resource-page .modal-overlay.active {
+    display: flex;
+}
+
+body.resource-page .expense-modal {
+    background: #fff;
+    border-radius: 12px;
+    width: min(420px, 100%);
+    padding: 20px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+}
+
+body.resource-page .expense-modal h3 {
+    margin-top: 0;
+    color: var(--primary);
+}
+
+body.resource-page .modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 10px;
+}
+
+body.resource-page .modal-form label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+body.resource-page .modal-form input,
+body.resource-page .modal-form select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+}
+
+body.resource-page .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+body.resource-page .modal-actions button {
+    min-width: 100px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+body.resource-page .modal-actions .cancel-btn {
+    background: #eee;
+    color: #555;
+}
+
+body.resource-page .modal-actions .save-btn {
+    background: var(--primary);
+    color: #fff;
+}
+
+.expense-delete-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.expense-delete-btn:hover {
+    background-color: #c0392b;
+}
+
+.expense-edit-btn {
+    background-color: #ffa500;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.expense-edit-btn:hover {
+    background-color: #cc8400;
+}
+
+.cropping-label-expense {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+/* Manage Farms Page */
+body.manage-farms-page .container {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 80px;
+}
+
+body.manage-farms-page header {
+    background: var(--primary);
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+body.manage-farms-page header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+body.manage-farms-page header .header-subtitle {
+    font-size: 1rem;
+    font-weight: normal;
+    margin-top: 4px;
+}
+
+body.manage-farms-page .content {
+    padding: 20px;
+    flex: 1;
+}
+
+body.manage-farms-page .farms-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+body.manage-farms-page .farms-header h3 {
+    margin: 0;
+    color: var(--primary);
+}
+
+body.manage-farms-page .farms-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+body.manage-farms-page .farm-card {
+    background: white;
+    border: 2px solid #eee;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: all 0.2s;
+}
+
+body.manage-farms-page .farm-card.selected {
+    border-color: var(--primary);
+    background: #f0f8ff;
+}
+
+body.manage-farms-page .farm-card.completed {
+    background: #f5f5f5;
+    border-color: #ddd;
+    opacity: 0.85;
+}
+
+body.manage-farms-page .farm-card.completed.selected {
+    background: #e8e8e8;
+    border-color: #999;
+}
+
+body.manage-farms-page .farm-card.completed h3 {
+    color: #666;
+}
+
+body.manage-farms-page .farm-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+body.manage-farms-page .farm-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body.manage-farms-page .farm-name h4 {
+    margin: 0;
+    color: var(--primary);
+    font-size: 1.2rem;
+}
+
+body.manage-farms-page .badge-active {
+    background: var(--accent);
+    color: white;
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+}
+
+body.manage-farms-page .farm-actions {
+    display: flex;
+    gap: 8px;
+}
+
+body.manage-farms-page .action-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px;
+    transition: transform 0.2s;
+}
+
+body.manage-farms-page .action-btn:active {
+    transform: scale(1.2);
+}
+
+body.manage-farms-page .farm-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+body.manage-farms-page .farm-detail-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+}
+
+body.manage-farms-page .farm-detail-item .label {
+    color: #666;
+}
+
+body.manage-farms-page .farm-detail-item .value {
+    font-weight: bold;
+    color: var(--text);
+}
+
+body.manage-farms-page .select-farm-btn {
+    width: 100%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+body.manage-farms-page .select-farm-btn:hover {
+    background: #3a6245;
+}
+
+body.manage-farms-page .select-farm-btn:active {
+    background: var(--accent);
+}
+
+body.manage-farms-page .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+body.manage-farms-page .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+}
+
+body.manage-farms-page .empty-state h3 {
+    color: var(--accent);
+    font-size: 1.25rem;
+    margin: 0 0 12px 0;
+}
+
+body.manage-farms-page .empty-state p {
+    color: #666;
+    font-size: 1rem;
+    line-height: 1.5;
+    margin: 0 0 24px 0;
+}
+
+body.manage-farms-page .loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+body.manage-farms-page .error-state {
+    text-align: center;
+    padding: 40px;
+    color: #e74c3c;
+}
+
+/* Toast notification */
+.toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--primary);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+/* Manage Farms - Additional Styles */
+body.manage-farms-page .manage-content {
+    padding: 20px;
+    flex: 1;
+}
+
+/* Backup Section Styles */
+body.manage-farms-page .backup-section {
+    background: linear-gradient(135deg, #4a7c59 0%, #5a9d6d 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
+}
+
+body.manage-farms-page .backup-section h3 {
+    margin: 0 0 8px 0;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body.manage-farms-page .backup-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+body.manage-farms-page .backup-btn {
+    flex: 1;
+    min-width: 140px;
+    padding: 12px 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+body.manage-farms-page .backup-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+body.manage-farms-page .backup-btn:active {
+    transform: translateY(0);
+}
+
+body.manage-farms-page .export-btn:hover {
+    background: rgba(72, 187, 120, 0.3);
+}
+
+body.manage-farms-page .import-btn:hover {
+    background: rgba(66, 153, 225, 0.3);
+}
+
+body.manage-farms-page .add-farm-section {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+body.manage-farms-page .farm-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+body.manage-farms-page .farm-card-title h3 {
+    margin: 0;
+    color: var(--primary);
+    font-size: 1.15rem;
+    word-break: break-word;
+}
+
+body.manage-farms-page .active-badge {
+    background: var(--accent);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+}
+
+body.manage-farms-page .completed-badge {
+    background: #888;
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+}
+
+body.manage-farms-page .farm-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+body.manage-farms-page .action-btn {
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+body.manage-farms-page .select-btn {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+body.manage-farms-page .select-btn:hover,
+body.manage-farms-page .select-btn:active {
+    background: #3a6245;
+}
+
+body.manage-farms-page .edit-btn {
+    background: #ffa500;
+    color: white;
+    border-color: #ffa500;
+}
+
+body.manage-farms-page .edit-btn:hover,
+body.manage-farms-page .edit-btn:active {
+    background: #cc8400;
+}
+
+body.manage-farms-page .delete-btn {
+    background: #e74c3c;
+    color: white;
+    border-color: #e74c3c;
+}
+
+body.manage-farms-page .delete-btn:hover,
+body.manage-farms-page .delete-btn:active {
+    background: #c0392b;
+}
+
+body.manage-farms-page .unmark-btn {
+    background: #8e44ad;
+    color: white;
+    border-color: #8e44ad;
+}
+
+body.manage-farms-page .unmark-btn:hover,
+body.manage-farms-page .unmark-btn:active {
+    background: #6c3483;
+}
+
+body.manage-farms-page .farm-card-details {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+body.manage-farms-page .farm-detail {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+}
+
+body.manage-farms-page .detail-label {
+    color: #666;
+}
+
+body.manage-farms-page .detail-value {
+    font-weight: bold;
+    color: var(--text);
+}
+
+body.manage-farms-page .loading-message,
+body.manage-farms-page .error-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+body.manage-farms-page .error-message {
+    color: #e74c3c;
+}
+
+/* Notification */
+.notification {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--primary);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.notification.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+/* Responsive adjustments for manage farms page */
+@media (max-width: 400px) {
+    body.manage-farms-page .farm-card-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    body.manage-farms-page .farm-card-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    body.manage-farms-page .action-btn {
+        flex: 1;
+        min-width: 70px;
+        text-align: center;
+    }
+    
+    body.manage-farms-page .backup-buttons {
+        flex-direction: column;
+    }
+    
+    body.manage-farms-page .backup-btn {
+        width: 100%;
+        min-width: unset;
+    }
+}
+
+/* ========================================
+   Harvest Data & Profit Calculator Styles
+   ======================================== */
+
+/* Harvest Modal Specific Styles */
+.harvest-modal {
+    max-width: 500px;
+}
+
+.harvest-modal h3 {
+    color: #4a7c59;
+    margin-bottom: 15px;
+}
+
+/* Harvest Form Input Styles */
+.harvest-modal .modal-form-group {
+    margin-bottom: 18px;
+}
+
+.harvest-modal .modal-form-group label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.harvest-modal input[type="date"],
+.harvest-modal input[type="number"],
+.harvest-modal textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: all 0.3s ease;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.harvest-modal input[type="date"]:focus,
+.harvest-modal input[type="number"]:focus,
+.harvest-modal textarea:focus {
+    outline: none;
+    border-color: #4a7c59;
+    box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.1);
+    background: #fafffe;
+}
+
+.harvest-modal input[type="date"]:hover,
+.harvest-modal input[type="number"]:hover,
+.harvest-modal textarea:hover {
+    border-color: #8fb996;
+}
+
+.harvest-modal input::placeholder,
+.harvest-modal textarea::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+.harvest-modal textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
+}
+
+/* Required field indicator */
+.harvest-modal label span[style*="color: red"] {
+    color: #e74c3c !important;
+    font-weight: bold;
+}
+
+/* Harvest Summary in Modal */
+.harvest-summary {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9f5ec 100%);
+    border: 2px solid #4a7c59;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 0.95rem;
+}
+
+.summary-row span:first-child {
+    color: #666;
+}
+
+/* Harvest Data Section in Farm Cards */
+.harvest-data-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid #e0e0e0;
+}
+
+.harvest-summary-card {
+    background: linear-gradient(135deg, #f0f8f0 0%, #e6f4ea 100%);
+    border: 2px solid #4a7c59;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.harvest-summary-card h4 {
+    color: #4a7c59;
+    font-size: 1rem;
+    margin: 0 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.profit-details {
+    margin-bottom: 12px;
+}
+
+.profit-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    font-size: 0.9rem;
+}
+
+.profit-row span:first-child {
+    color: #666;
+}
+
+.net-profit-row {
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.profit-notes {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #555;
+}
+
+/* No Harvest Data State */
+.no-harvest-data {
+    background: #f9f9f9;
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+}
+
+.no-harvest-data p {
+    color: #666;
+    font-size: 1rem;
+    line-height: 1.5;
+    margin: 0 0 12px 0;
+}
+
+/* Harvest Action Buttons */
+.harvest-action-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    background: #4a7c59;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.harvest-action-btn:hover {
+    background: #3d6548;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
+}
+
+.harvest-action-btn:active {
+    transform: translateY(0);
+}
+
+.add-harvest-btn {
+    background: linear-gradient(135deg, #4a7c59 0%, #5a8c69 100%);
+}
+
+.edit-harvest-btn {
+    background: linear-gradient(135deg, #3d85c6 0%, #5a9fd6 100%);
+}
+
+.edit-harvest-btn:hover {
+    background: linear-gradient(135deg, #2a6ba8 0%, #4588c8 100%);
+}
+
+/* Profit Summary on Dashboard */
+.profit-summary-card {
+    background: linear-gradient(135deg, #f0f8f0 0%, #e6f4ea 100%);
+    border: 2px solid #4a7c59;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.profit-summary-card h4 {
+    color: #4a7c59;
+    font-size: 1rem;
+    margin: 0 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.profit-summary-details {
+    margin-bottom: 12px;
+}
+
+.profit-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    font-size: 0.9rem;
+}
+
+.profit-summary-row span:first-child {
+    color: #666;
+}
+
+.profit-summary-row.net-profit {
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.profit-positive {
+    color: #4a7c59 !important;
+}
+
+.profit-negative {
+    color: #e74c3c !important;
+}
+
+.edit-harvest-btn-dashboard {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #3d85c6 0%, #5a9fd6 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.edit-harvest-btn-dashboard:hover {
+    background: linear-gradient(135deg, #2a6ba8 0%, #4588c8 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(61, 133, 198, 0.3);
+}
+
+.edit-harvest-btn-dashboard:active {
+    transform: translateY(0);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 480px) {
+    body.dashboard-page .expense-overview {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+}
+
+/* ========================================
+   TASK TRACKING SYSTEM
+   ======================================== */
+
+/* Modal for task completion */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    transition: background-color 0.2s ease;
+}
+
+.modal.modal-show {
+    display: flex;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9) translateY(-20px);
+    opacity: 0;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal.modal-show .modal-content {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-content h3 {
+    margin: 0 0 12px 0;
+    color: var(--primary);
+    font-size: 1.3rem;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.secondary-btn {
+    background: #e0e0e0;
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.secondary-btn:hover {
+    background: #d0d0d0;
+}
+
+/* Task item styling */
+.task-item {
+    margin-bottom: 12px;
+    padding: 12px;
+    background: #fafafa;
+    border-radius: 6px;
+    border-left: 3px solid #ddd;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    user-select: none;
+}
+
+.task-item:hover {
+    background: #f5f5f5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.task-item.task-expanded {
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateX(4px);
+}
+
+.task-completed {
+    background: #f0f9f0 !important;
+    border-left-color: var(--primary) !important;
+}
+
+.task-completed.task-expanded {
+    background: #e8f5e8 !important;
+}
+
+.task-delayed {
+    border-left-color: var(--warn) !important;
+}
+
+/* Task content layout */
+.task-content-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.task-info {
+    flex: 1;
+    min-width: 0; /* Allows text to wrap properly */
+}
+
+.task-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* Task date and text styling */
+.task-date {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: #666;
+    line-height: 1.5;
+}
+
+.task-text {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.task-text-completed {
+    text-decoration: line-through;
+    color: #999;
+}
+
+/* Date label styles */
+.task-completed-label {
+    color: var(--primary);
+    font-weight: bold;
+}
+
+.task-adjusted-label {
+    color: var(--warn);
+    font-weight: bold;
+}
+
+.task-scheduled-label {
+    font-size: 0.85rem;
+    color: #999;
+}
+
+.task-original-label {
+    font-size: 0.85rem;
+    color: #999;
+    text-decoration: line-through;
+}
+
+.task-delay-badge {
+    font-size: 0.85rem;
+    color: #e67e22;
+}
+
+.task-late {
+    color: #e67e22;
+}
+
+.task-early {
+    color: #3498db;
+}
+
+/* Task expand icon */
+.task-expand-icon {
+    font-size: 0.7rem;
+    color: #999;
+    margin-right: 8px;
+    transition: transform 0.2s ease;
+    display: inline-block;
+}
+
+.task-item.task-expanded .task-expand-icon {
+    transform: rotate(-180deg);
+}
+
+/* Task action buttons */
+.task-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    transform: scale(0.8);
+    pointer-events: none;
+    max-width: 0;
+    overflow: hidden;
+}
+
+.task-item.task-expanded .task-btn {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+    max-width: 200px;
+}
+
+.task-done-btn {
+    background: var(--primary);
+    color: white;
+}
+
+.task-done-btn:hover {
+    background: #3a6245;
+    transform: scale(1.05);
+}
+
+.task-edit-btn {
+    background: #3d85c6;
+    color: white;
+    padding: 6px 10px;
+    font-size: 1rem;
+}
+
+.task-edit-btn:hover {
+    background: #2c6ba8;
+    transform: scale(1.1);
+}
+
+.task-undo-btn {
+    background: #e67e22;
+    color: white;
+    padding: 6px 10px;
+    font-size: 1rem;
+}
+
+.task-undo-btn:hover {
+    background: #d35400;
+    transform: scale(1.1);
+}
+
+/* Delay indicator styles */
+.delay-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.delay-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.delay-danger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Mobile responsiveness for task tracking */
+@media (max-width: 480px) {
+    .modal-content {
+        padding: 20px;
+        margin: 10px;
+    }
+    
+    .modal-content h3 {
+        font-size: 1.1rem;
+    }
+    
+    .task-item {
+        padding: 10px;
+    }
+    
+    .task-content-wrapper {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .task-actions {
+        justify-content: flex-start;
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .task-item.task-expanded .task-btn {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+    }
+    
+    .task-date {
+        font-size: 0.85rem;
+    }
+    
+    .task-text {
+        font-size: 0.9rem;
+    }
+    
+    .task-expand-icon {
+        font-size: 0.65rem;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    .modal-actions button {
+        width: 100%;
+    }
+    
+    /* Harvest components mobile responsive */
+    .harvest-modal {
+        max-width: 95%;
+    }
+    
+    .harvest-summary-card,
+    .profit-summary-card {
+        padding: 12px;
+    }
+    
+    .harvest-summary-card h4,
+    .profit-summary-card h4 {
+        font-size: 0.95rem;
+    }
+    
+    .profit-row,
+    .profit-summary-row,
+    .summary-row {
+        font-size: 0.85rem;
+        padding: 4px 0;
+    }
+    
+    .harvest-action-btn,
+    .edit-harvest-btn-dashboard {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+    
+    .profit-notes {
+        font-size: 0.8rem;
+        padding: 8px;
+    }
+}

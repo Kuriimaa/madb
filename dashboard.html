@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagtanimAyDiBiro (MADB) - Dashboard</title>
+    <meta name="description" content="Farm dashboard showing cultivation progress and financial overview">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+    <script src="js/db.js"></script>
+    <script src="js/rice-stages.js"></script>
+</head>
+<body class="dashboard-page">
+    <div class="container">
+        <header>
+            <h2>MagtanimAyDiBiro</h2>
+            <div class="header-subtitle">Main Dashboard</div>
+        </header>
+
+        <div id="dashboardContent">
+            <div class="summary-section">
+                <div id="farmSummary"></div>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h3>🌱 Rice Cultivation Progress</h3>
+                        <div id="currentStage">Loading...</div>
+                        <div class="progress-indicator">
+                            <div class="progress-bar" id="cultivationProgress" style="width: 0%"></div>
+                        </div>
+                        <div class="next-action" id="nextAction">Loading next action...</div>
+                        <div id="stageSummary"></div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <h3>💰 Financial Overview</h3>
+                        <div class="expense-overview">
+                            <div class="expense-item">
+                                <div class="expense-label">This Month</div>
+                                <div class="expense-amount" id="monthlyExpense">₱0</div>
+                            </div>
+                            <div class="expense-item total-expense">
+                                <div class="expense-label">Total Expense</div>
+                                <div class="expense-amount" id="totalExpense">₱0</div>
+                            </div>
+                        </div>
+                        <div class="expense-trend" id="expenseTrend">Loading...</div>
+                        
+                        <!-- Profit Summary (shown only for completed farms with harvest data) -->
+                        <div id="profitSummary" style="display: none;"></div>
+                        
+                        <div class="chart-container">
+                            <canvas id="expenseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="quick-actions" id="quickActions">
+                    <div class="quick-action-btn" onclick="location.href='manage-farms.html'">
+                        <div class="icon">🏡</div>
+                        <div class="label">Manage Farms</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="location.href='resource-tracker.html'">
+                        <div class="icon">➕</div>
+                        <div class="label">Add Expense</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="location.href='rice-guide.html'">
+                        <div class="icon">📅</div>
+                        <div class="label">View Schedule</div>
+                    </div>
+                    <!-- Mark as Completed button will be added dynamically for active farms -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item active">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-label">Dashboard</div>
+        </a>
+        <a href="rice-guide.html" class="nav-item">
+            <div class="nav-icon">🌱</div>
+            <div class="nav-label">Rice Guide</div>
+        </a>
+        <a href="resource-tracker.html" class="nav-item">
+            <div class="nav-icon">💧</div>
+            <div class="nav-label">Resources</div>
+        </a>
+    </nav>
+
+    <!-- Harvest Data Modal -->
+    <div id="harvestModal" class="modal">
+        <div class="modal-content harvest-modal">
+            <h3>🎉 Farm Completed!</h3>
+            <p id="harvestPromptText">Would you like to add harvest and revenue data to calculate your profit?</p>
+            
+            <div id="harvestForm" style="display: none;">
+                <div class="modal-form-group">
+                    <label for="harvestSaleDate">Sale Date <span style="color: red;">*</span></label>
+                    <input type="date" id="harvestSaleDate" required>
+                </div>
+
+            <div class="modal-form-group">
+                <label for="harvestRevenue">Total Revenue (₱) <span style="color: red;">*</span></label>
+                <input type="number" id="harvestRevenue" min="0" step="0.01" required placeholder="e.g. 50000">
+            </div>
+
+            <div class="modal-form-group">
+                <label for="harvestNotes">Notes (optional)</label>
+                <textarea id="harvestNotes" rows="3" placeholder="e.g. Sold to local cooperative, Grade A quality"></textarea>
+            </div>
+
+                <div class="harvest-summary" id="harvestSummary" style="display: none;">
+                    <div class="summary-row">
+                        <span>Total Revenue:</span>
+                        <span id="summaryRevenue" style="font-weight: bold; color: #4a7c59;">₱0</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Total Expenses:</span>
+                        <span id="summaryExpenses" style="font-weight: bold; color: #666;">₱0</span>
+                    </div>
+                    <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
+                    <div class="summary-row">
+                        <span style="font-weight: bold; font-size: 1.1rem;">Net Profit:</span>
+                        <span id="summaryProfit" style="font-weight: bold; font-size: 1.1rem; color: #4a7c59;">₱0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions" id="harvestPromptActions">
+                <button class="primary-btn" onclick="showHarvestForm()">📊 Add Harvest Data</button>
+                <button class="secondary-btn" onclick="skipHarvestData()">Skip for Now</button>
+            </div>
+
+            <div class="modal-actions" id="harvestFormActions" style="display: none;">
+                <button class="primary-btn" onclick="saveHarvestData()">💾 Save</button>
+                <button class="secondary-btn" onclick="closeHarvestModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use shared rice cultivation stages (full stages for accurate display)
+        const stages = RiceStages.STAGES;
+
+        async function loadFarmInfo() {
+            try {
+                // Get selected farm ID
+                const selectedFarmId = await IndexedDBStorage.getSelectedFarmId();
+                if (!selectedFarmId) {
+                    // Try legacy farmInfo for backward compatibility
+                    const legacyFarm = await MADBStorage.getItem('farmInfo');
+                    return legacyFarm;
+                }
+                // Load the selected farm
+                const farm = await IndexedDBStorage.getFarm(selectedFarmId);
+                return farm;
+            } catch (error) {
+                console.error('Error loading farm info:', error);
+                return null;
+            }
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function getStageDate(startDate, offset) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + offset);
+            return formatDate(d);
+        }
+
+        // Use shared functions for consistent calculations
+
+        function renderFarmSummary(targetId, farmInfo) {
+            const mount = document.getElementById(targetId);
+            mount.innerHTML = `
+                <div class="farm-summary-card">
+                    <h4>${farmInfo.name}</h4>
+                    <div class="farm-meta">
+                        Size: <strong>${farmInfo.size} ha</strong><br>
+                        Start Date: <strong>${formatDate(new Date(farmInfo.startDate))}</strong><br>
+                        Cropping: <strong>${farmInfo.cropping}</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+        function calculateExpenseSummary(expenses) {
+            const categories = {};
+            let monthlyTotal = 0;
+            let totalCropping = 0;
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            expenses.forEach(expense => {
+                const amount = Number(expense.amount);
+                const expenseDate = new Date(expense.date);
+                
+                // Add to total cropping expenses
+                totalCropping += amount;
+                
+                // Add to monthly total if expense is from current month
+                if (expenseDate.getMonth() === currentMonth && 
+                    expenseDate.getFullYear() === currentYear) {
+                    monthlyTotal += amount;
+                }
+                
+                categories[expense.category] = (categories[expense.category] || 0) + amount;
+            });
+
+            // Provide default data if no expenses yet
+            if (Object.keys(categories).length === 0) {
+                return {
+                    monthlyTotal: 0,
+                    totalCropping: 0,
+                    categories: {}
+                };
+            }
+
+            return {
+                monthlyTotal,
+                totalCropping,
+                categories
+            };
+        }
+
+        function renderStageSummary(currentIdx) {
+            return `
+                <div style="color: #666; margin-top: 14px; margin-bottom: 4px;">Stage Progress:</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    ${stages.map((stage, index) => `
+                        <div style="
+                            padding: 4px 10px;
+                            border-radius: 16px;
+                            background: ${index === currentIdx ? '#e6a23c22' : index < currentIdx ? '#4a7c5922' : '#f0f0f0'};
+                            color: ${index === currentIdx ? '#e6a23c' : index < currentIdx ? '#4a7c59' : '#666'};
+                            font-size: 0.85rem;
+                        ">
+                            ${stage.title}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderQuickActions(farmInfo) {
+            const quickActions = document.getElementById('quickActions');
+            const isCompleted = farmInfo.completed || false;
+
+            // Remove existing "Mark as Completed" button if it exists
+            const existingBtn = document.getElementById('markCompletedBtn');
+            if (existingBtn) {
+                existingBtn.remove();
+            }
+
+            // Add "Mark as Completed" button only for active farms
+            if (!isCompleted) {
+                const markCompletedBtn = document.createElement('div');
+                markCompletedBtn.id = 'markCompletedBtn';
+                markCompletedBtn.className = 'quick-action-btn';
+                markCompletedBtn.onclick = () => markFarmAsCompleted(farmInfo.id, farmInfo.name);
+                markCompletedBtn.innerHTML = `
+                    <div class="icon">✅</div>
+                    <div class="label">Mark as Completed</div>
+                `;
+                quickActions.appendChild(markCompletedBtn);
+            } else {
+                // Show completed status message
+                const completedMsg = document.createElement('div');
+                completedMsg.id = 'markCompletedBtn';
+                completedMsg.className = 'quick-action-btn completed-farm-notice';
+                completedMsg.innerHTML = `
+                    <div class="icon">✅</div>
+                    <div class="label">Farm Completed</div>
+                `;
+                quickActions.appendChild(completedMsg);
+            }
+        }
+
+        let currentFarmContext = null; // Store farm context for harvest modal
+
+        async function markFarmAsCompleted(farmId, farmName) {
+            const confirmed = confirm(
+                `Mark "${farmName}" as completed?\n\n` +
+                `This farm's cultivation cycle is complete. You can still view historical data, but new expenses cannot be added.\n\n` +
+                `You can unmark it later from Manage Farms if needed.`
+            );
+
+            if (!confirmed) return;
+
+            try {
+                await IndexedDBStorage.markFarmCompleted(farmId);
+                
+                // Store farm context and show harvest modal
+                currentFarmContext = { id: farmId, name: farmName };
+                openHarvestModal(farmId, farmName);
+            } catch (error) {
+                console.error('Error marking farm as completed:', error);
+                alert('Error marking farm as completed. Please try again.');
+            }
+        }
+
+        async function openHarvestModal(farmId, farmName) {
+            const modal = document.getElementById('harvestModal');
+            const promptText = document.getElementById('harvestPromptText');
+            
+            // Reset modal to prompt state
+            document.getElementById('harvestForm').style.display = 'none';
+            document.getElementById('harvestPromptActions').style.display = 'flex';
+            document.getElementById('harvestFormActions').style.display = 'none';
+            
+            promptText.textContent = `Congratulations on completing "${farmName}"! Would you like to add harvest and revenue data to calculate your profit?`;
+            
+            // Set default sale date to today
+            document.getElementById('harvestSaleDate').value = new Date().toISOString().split('T')[0];
+            
+            // Clear form fields
+            document.getElementById('harvestRevenue').value = '';
+            document.getElementById('harvestNotes').value = '';
+            
+            // Show modal
+            requestAnimationFrame(() => {
+                modal.classList.add('modal-show');
+            });
+        }
+
+        function showHarvestForm() {
+            document.getElementById('harvestForm').style.display = 'block';
+            document.getElementById('harvestPromptActions').style.display = 'none';
+            document.getElementById('harvestFormActions').style.display = 'flex';
+            
+            // Set up revenue input listener for live calculation
+            const revenueInput = document.getElementById('harvestRevenue');
+            revenueInput.addEventListener('input', updateHarvestSummary);
+            
+            // Show summary and calculate
+            updateHarvestSummary();
+        }
+
+        async function updateHarvestSummary() {
+            const revenue = parseFloat(document.getElementById('harvestRevenue').value) || 0;
+            
+            if (!currentFarmContext) return;
+            
+            // Get total expenses for the farm
+            const expenses = await IndexedDBStorage.getExpensesByFarm(currentFarmContext.id);
+            const totalExpenses = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+            const netProfit = revenue - totalExpenses;
+            
+            // Update summary display
+            document.getElementById('summaryRevenue').textContent = `₱${revenue.toLocaleString()}`;
+            document.getElementById('summaryExpenses').textContent = `₱${totalExpenses.toLocaleString()}`;
+            document.getElementById('summaryProfit').textContent = `₱${netProfit.toLocaleString()}`;
+            document.getElementById('summaryProfit').style.color = netProfit >= 0 ? '#4a7c59' : '#e74c3c';
+            
+            // Show summary if revenue is entered
+            document.getElementById('harvestSummary').style.display = revenue > 0 ? 'block' : 'none';
+        }
+
+        async function saveHarvestData() {
+            const saleDate = document.getElementById('harvestSaleDate').value;
+            const revenue = parseFloat(document.getElementById('harvestRevenue').value);
+            
+            // Validate required fields
+            if (!saleDate || !revenue || revenue <= 0) {
+                alert('Please fill in all required fields (Sale Date and Revenue).');
+                return;
+            }
+            
+            if (!currentFarmContext) {
+                alert('Error: Farm context not found.');
+                return;
+            }
+            
+            try {
+                const notes = document.getElementById('harvestNotes').value.trim();
+                
+                const harvestData = {
+                    saleDate,
+                    revenue,
+                    notes
+                };
+                
+                await IndexedDBStorage.saveHarvestData(currentFarmContext.id, harvestData);
+                
+                closeHarvestModal();
+                alert(`✅ Harvest data saved successfully!\n\nYou can view or edit this data anytime from Manage Farms.`);
+                location.reload();
+            } catch (error) {
+                console.error('Error saving harvest data:', error);
+                alert('Error saving harvest data. Please try again.');
+            }
+        }
+
+        function skipHarvestData() {
+            closeHarvestModal();
+            alert(`✅ Farm marked as completed!\n\nYou can add harvest data later from Manage Farms.`);
+            location.reload();
+        }
+
+        function closeHarvestModal() {
+            const modal = document.getElementById('harvestModal');
+            modal.classList.remove('modal-show');
+            currentFarmContext = null;
+        }
+
+        // Load task completions for a farm (needed for adjusted dates)
+        async function loadTaskCompletions(farmId) {
+            if (!farmId) return [];
+            try {
+                return await IndexedDBStorage.getTaskCompletions(farmId);
+            } catch (error) {
+                console.error('Error loading task completions:', error);
+                return [];
+            }
+        }
+
+        // Get transplanting completion
+        function getTransplantingCompletion(taskCompletions) {
+            return taskCompletions.find(tc => tc.stageIndex === 3 && tc.taskIndex === 0);
+        }
+
+        // Calculate cumulative delay (same logic as rice guide)
+        function calculateCumulativeDelay(stageIndex, taskIndex, taskCompletions) {
+            const TRANSPLANTING_STAGE = 3;
+            
+            if (stageIndex > TRANSPLANTING_STAGE) {
+                return 0;
+            }
+            
+            let totalDelay = 0;
+            for (const completion of taskCompletions) {
+                if (completion.stageIndex < stageIndex || 
+                    (completion.stageIndex === stageIndex && completion.taskIndex < taskIndex)) {
+                    totalDelay += completion.delayDays;
+                }
+            }
+            
+            return totalDelay;
+        }
+
+        // Get adjusted date (same logic as rice guide)
+        function getAdjustedDate(farmStartDate, originalOffset, stageIndex, taskIndex, taskCompletions) {
+            if (!farmStartDate) return null;
+            
+            const TRANSPLANTING_STAGE = 3;
+            const transplantCompletion = getTransplantingCompletion(taskCompletions);
+            
+            // Post-transplanting tasks: calculate from ACTUAL transplanting completion date
+            if (stageIndex > TRANSPLANTING_STAGE && transplantCompletion) {
+                const transplantDate = new Date(transplantCompletion.completedDate);
+                const daysAfterTransplant = originalOffset - stages[TRANSPLANTING_STAGE].offset;
+                const d = new Date(transplantDate);
+                d.setDate(d.getDate() + daysAfterTransplant);
+                return d;
+            }
+            
+            // Pre-transplanting tasks: use cumulative delay system
+            const cumulativeDelay = calculateCumulativeDelay(stageIndex, taskIndex, taskCompletions);
+            const d = new Date(farmStartDate);
+            d.setDate(d.getDate() + originalOffset + cumulativeDelay);
+            return d;
+        }
+
+        async function renderDashboard() {
+            const content = document.getElementById('dashboardContent');
+            const farmInfo = await loadFarmInfo();
+
+            if (!farmInfo) {
+                content.innerHTML = `
+                    <div class="missing-farm-info">
+                        <h3>Set up your farm first</h3>
+                        <p>Please enter your farm details to get started.</p>
+                        <a class="primary-btn" href="farm-setup.html">Go to Farm Setup</a>
+                    </div>
+                `;
+                return;
+            }
+
+            renderFarmSummary('farmSummary', farmInfo);
+            
+            // Load task completions for adjusted date calculations
+            const taskCompletions = await loadTaskCompletions(farmInfo.id);
+
+            const progressData = RiceStages.calculateProgress(farmInfo.startDate);
+            const currentIdx = progressData.currentStageIndex;
+            const currentStage = stages[currentIdx];
+            const nextStage = stages[currentIdx + 1] || null;
+
+            // Calculate adjusted total days based on cumulative delays
+            let totalCumulativeDelay = 0;
+            for (const completion of taskCompletions) {
+                totalCumulativeDelay += completion.delayDays;
+            }
+            
+            const adjustedTotalDays = progressData.totalDays + totalCumulativeDelay;
+            const adjustedPercentage = Math.min((progressData.daysElapsed / adjustedTotalDays) * 100, 100);
+
+            document.getElementById('cultivationProgress').style.width = `${adjustedPercentage}%`;
+            document.getElementById('currentStage').innerHTML = `
+                <div style="font-size: 1.1rem; font-weight: bold; color: #4a7c59;">${currentStage.title}</div>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 4px;">
+                    Day ${progressData.daysElapsed} of ${adjustedTotalDays}${totalCumulativeDelay > 0 ? ` (${totalCumulativeDelay} day${totalCumulativeDelay > 1 ? 's' : ''} extended)` : ''}
+                </div>
+            `;
+
+            // Find the nearest upcoming task using ADJUSTED dates (same as rice guide)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            let nearestTask = null;
+            let nearestTaskDate = null;
+            let nearestTaskText = '';
+            
+            // Scan all tasks across all stages and calculate adjusted dates
+            stages.forEach((stage, stageIdx) => {
+                if (stage.tasks && stage.tasks.length > 0) {
+                    stage.tasks.forEach((task, taskIdx) => {
+                        const taskText = typeof task === 'object' ? task.text : task;
+                        const taskOffset = typeof task === 'object' && task.offset != null ? task.offset : stage.offset;
+                        
+                        // Use the same adjusted date calculation as rice guide
+                        const adjustedDate = getAdjustedDate(farmInfo.startDate, taskOffset, stageIdx, taskIdx, taskCompletions);
+                        
+                        if (adjustedDate) {
+                            adjustedDate.setHours(0, 0, 0, 0);
+                            
+                            // Only consider future tasks or tasks happening today
+                            if (adjustedDate >= today) {
+                                // If this is the first future task, or if this task is sooner than our current nearest
+                                if (!nearestTaskDate || adjustedDate < nearestTaskDate) {
+                                    nearestTask = task;
+                                    nearestTaskDate = adjustedDate;
+                                    nearestTaskText = taskText;
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            if (progressData.isComplete) {
+                document.getElementById('nextAction').innerHTML = `<div><strong>🎉 Cultivation Complete!</strong></div><div style="font-size:0.9rem; margin-top:4px;">${progressData.daysElapsed} days completed. Review post-harvest tasks.</div>`;
+            } else if (nearestTask) {
+                const taskDateFormatted = formatDate(nearestTaskDate);
+                const daysUntil = Math.ceil((nearestTaskDate - today) / (1000 * 60 * 60 * 24));
+                
+                let timeText = '';
+                if (daysUntil === 0) {
+                    timeText = 'Today';
+                } else if (daysUntil === 1) {
+                    timeText = 'Tomorrow';
+                } else {
+                    timeText = `${daysUntil} day${daysUntil > 1 ? 's' : ''} from now`;
+                }
+                
+                document.getElementById('nextAction').innerHTML = `
+                    <div><strong>Next Task:</strong></div>
+                    <div style="font-size:0.9rem; margin-top:4px;">${nearestTaskText}</div>
+                    <div style="font-size:0.85rem; color:#999; margin-top:4px;">Scheduled: ${taskDateFormatted} (${timeText})</div>
+                `;
+            } else {
+                // No upcoming tasks found (all tasks are in the past)
+                document.getElementById('nextAction').innerHTML = `<div><strong>All tasks completed!</strong></div><div style="font-size:0.9rem; margin-top:4px;">No upcoming scheduled tasks.</div>`;
+            }
+
+            document.getElementById('stageSummary').innerHTML = renderStageSummary(currentIdx);
+            document.getElementById('expenseTrend').textContent = `${farmInfo.cropping} cropping`;
+
+            // Add "Mark as Completed" button for active farms
+            renderQuickActions(farmInfo);
+
+            // Load and calculate expense data from IndexedDB (filtered by farm)
+            const expenses = farmInfo.id 
+                ? await IndexedDBStorage.getExpensesByFarm(farmInfo.id)
+                : await IndexedDBStorage.getAllExpenses();
+            const expenseData = calculateExpenseSummary(expenses);
+
+            document.getElementById('monthlyExpense').textContent = `₱${expenseData.monthlyTotal.toLocaleString()}`;
+            document.getElementById('totalExpense').textContent = `₱${expenseData.totalCropping.toLocaleString()}`;
+
+            // Show profit summary if farm is completed and has harvest data
+            const profitSummaryDiv = document.getElementById('profitSummary');
+            if (farmInfo.completed && farmInfo.harvestData && farmInfo.harvestData.revenue) {
+                const harvestData = farmInfo.harvestData;
+                const profitClass = harvestData.netProfit >= 0 ? 'profit-positive' : 'profit-negative';
+                
+                profitSummaryDiv.innerHTML = `
+                    <div class="profit-summary-card">
+                        <h4>📊 Harvest & Profit Summary</h4>
+                        <div class="profit-summary-details">
+                            <div class="profit-summary-row">
+                                <span>Sale Date:</span>
+                                <span>${formatDate(new Date(harvestData.saleDate))}</span>
+                            </div>
+                            <div class="profit-summary-row">
+                                <span>Revenue:</span>
+                                <span style="color: #4a7c59; font-weight: bold;">₱${harvestData.revenue.toLocaleString()}</span>
+                            </div>
+                            <div class="profit-summary-row">
+                                <span>Expenses:</span>
+                                <span style="color: #666;">₱${harvestData.totalExpenses.toLocaleString()}</span>
+                            </div>
+                            <hr style="margin: 8px 0; border: none; border-top: 2px solid #ddd;">
+                            <div class="profit-summary-row net-profit">
+                                <span style="font-weight: bold; font-size: 1.05rem;">Net Profit:</span>
+                                <span class="${profitClass}" style="font-weight: bold; font-size: 1.1rem;">
+                                    ${harvestData.netProfit >= 0 ? '₱' : '-₱'}${Math.abs(harvestData.netProfit).toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                        <button class="edit-harvest-btn-dashboard" onclick="location.href='manage-farms.html'">
+                            ✏️ Edit Harvest Data
+                        </button>
+                    </div>
+                `;
+                profitSummaryDiv.style.display = 'block';
+            } else {
+                profitSummaryDiv.style.display = 'none';
+            }
+
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(expenseData.categories),
+                    datasets: [{
+                        data: Object.values(expenseData.categories),
+                        backgroundColor: ['#4a7c59', '#8fb996', '#3d85c6', '#e6a23c'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await renderDashboard();
+            } catch (error) {
+                console.error('Error rendering dashboard:', error);
+            }
+        });
+    </script>
+
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html> 

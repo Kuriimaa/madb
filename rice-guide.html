@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagtanimAyDiBiro (MADB) - Rice Cultivation Guide</title>
+    <meta name="description" content="Step-by-step rice cultivation guide for Bagabag farmers">
+    <meta name="theme-color" content="#4a7c59">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+    <script>
+        // Dev helper: unregister service workers early to avoid stale cached HTML on localhost
+        (function() {
+            try {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then(regs => {
+                            regs.forEach(r => {
+                                console.log('Dev: unregistering service worker (head):', r);
+                                r.unregister();
+                            });
+                        }).catch(e => console.warn('Failed to get registrations (head):', e));
+                    }
+                }
+            } catch (e) {
+                console.warn('Service worker unregister in head failed:', e);
+            }
+        })();
+    </script>
+    <script src="js/db.js"></script>
+    <script src="js/rice-stages.js"></script>
+</head>
+<body class="rice-guide-page">
+    <div class="container">
+        <header>
+            <h2>MagtanimAyDiBiro</h2>
+            <div class="header-subtitle">Rice Cultivation Guide</div>
+        </header>
+        <div id="guide"></div>
+
+        <!-- Task Completion Modal -->
+        <div id="taskCompletionModal" class="modal">
+            <div class="modal-content">
+                <h3 id="taskModalTitle">Mark Task as Done</h3>
+                <p id="taskModalDescription" style="margin: 12px 0; color: #666;"></p>
+                
+                <div style="margin: 20px 0;">
+                    <label for="taskCompletionDate" style="display: block; margin-bottom: 8px; font-weight: bold;">
+                        When was this task completed?
+                    </label>
+                    <input type="date" id="taskCompletionDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;" required>
+                    <div style="margin-top: 8px; font-size: 0.9rem; color: #666;">
+                        Scheduled: <span id="taskScheduledDate"></span>
+                    </div>
+                </div>
+
+                <div class="modal-actions" style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button id="confirmTaskCompletion" class="primary-btn" style="flex: 1;">Mark as Done</button>
+                    <button id="cancelTaskCompletion" class="secondary-btn" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Use shared rice cultivation stages for consistency
+        const stages = RiceStages.STAGES;
+
+        let farmInfo = null;
+        let taskCompletions = [];
+        let currentTaskContext = null; // For modal
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        // returns whole days elapsed from farm start to today (can be negative)
+        function daysSinceStart() {
+            if (!farmInfo || !farmInfo.startDate) return null;
+            const start = new Date(farmInfo.startDate);
+            const now = new Date();
+            // keep midnight normalization
+            start.setHours(0,0,0,0);
+            now.setHours(0,0,0,0);
+            const diffMs = now - start;
+            return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        }
+
+        // Determine whether a stage can start based on timeline using task offsets.
+        function canStartStage(stage) {
+            const days = daysSinceStart();
+            if (days === null) return { allowed: false, reason: 'No farm start date' };
+
+            // derive max offset from tasks (if tasks items are objects with offset)
+            const offsets = (stage.tasks || [])
+                .map(t => typeof t === 'object' && t.offset != null ? t.offset : null)
+                .filter(v => v != null);
+
+            const maxOffset = offsets.length ? Math.max(...offsets) : (stage.offset || 0);
+            if (days >= maxOffset) return { allowed: true };
+            return { allowed: false, reason: `Available from day ${maxOffset}` };
+        }
+
+        function getStageDate(offset) {
+            if (!farmInfo || !farmInfo.startDate) return '';
+            const d = new Date(farmInfo.startDate);
+            d.setDate(d.getDate() + offset);
+            return formatDate(d);
+        }
+
+        function calculateResourcesPerHectare(farmSize, stage) {
+            if (!stage.resourcesPerHectare || !farmSize) return null;
+            const res = stage.resourcesPerHectare;
+            const totalFert = parseFloat(res.totalFertilizer) * farmSize;
+            const totalPest = parseFloat(res.totalPesticide) * farmSize;
+            return {
+                totalFertilizer: `${totalFert.toFixed(2)} bags`,
+                totalPesticide: `${totalPest.toFixed(2)} quarts`, 
+                applications: res.applications.map(app => ({
+                    day: app.day,
+                    fertilizer: `${(parseFloat(app.fertilizer) * farmSize).toFixed(2)} bags`,
+                    pesticide: `~${(totalPest / res.applications.length).toFixed(2)} quarts`
+                }))
+            };
+        }
+
+        /**
+         * Find the transplanting completion (Stage 3, index 0 task)
+         * Stage 3 is "4. Transplanting" (0-indexed as stage 3)
+         */
+        function getTransplantingCompletion() {
+            // Stage index 3 is "4. Transplanting"
+            return taskCompletions.find(tc => tc.stageIndex === 3 && tc.taskIndex === 0);
+        }
+
+        /**
+         * Calculate cumulative delay up to a specific task
+         * Pre-transplanting (including transplanting itself): delays accumulate from previous tasks
+         * Post-transplanting: return 0 (delays don't accumulate in this phase)
+         */
+        function calculateCumulativeDelay(stageIndex, taskIndex) {
+            // Transplanting is stage 3 (0-indexed)
+            const TRANSPLANTING_STAGE = 3;
+            
+            // For post-transplanting tasks: delays don't accumulate
+            // (they're calculated from actual transplanting date instead)
+            if (stageIndex > TRANSPLANTING_STAGE) {
+                return 0;
+            }
+            
+            // For pre-transplanting tasks (including transplanting itself):
+            // Accumulate all delays from previous tasks
+            let totalDelay = 0;
+            for (const completion of taskCompletions) {
+                // Only count delays from earlier tasks (before current task)
+                if (completion.stageIndex < stageIndex || 
+                    (completion.stageIndex === stageIndex && completion.taskIndex < taskIndex)) {
+                    totalDelay += completion.delayDays;
+                }
+            }
+            
+            return totalDelay;
+        }
+
+        /**
+         * Get adjusted date based on cumulative delays or transplanting date
+         * Pre-transplanting (including transplanting): delays accumulate from farm start
+         * Post-transplanting: calculated from ACTUAL transplanting completion date
+         */
+        function getAdjustedDate(originalOffset, stageIndex, taskIndex) {
+            if (!farmInfo || !farmInfo.startDate) return null;
+            
+            const TRANSPLANTING_STAGE = 3;
+            const transplantCompletion = getTransplantingCompletion();
+            
+            // Post-transplanting tasks: calculate from ACTUAL transplanting completion date
+            // These are NOT affected by delays within the post-transplanting phase
+            if (stageIndex > TRANSPLANTING_STAGE && transplantCompletion) {
+                const transplantDate = new Date(transplantCompletion.completedDate);
+                // Days after transplanting (e.g., harvest is 90 days after transplant)
+                const daysAfterTransplant = originalOffset - stages[TRANSPLANTING_STAGE].offset;
+                const d = new Date(transplantDate);
+                d.setDate(d.getDate() + daysAfterTransplant);
+                return d;
+            }
+            
+            // Pre-transplanting tasks (including transplanting itself): 
+            // Use cumulative delay system from farm start date
+            const cumulativeDelay = calculateCumulativeDelay(stageIndex, taskIndex);
+            const d = new Date(farmInfo.startDate);
+            d.setDate(d.getDate() + originalOffset + cumulativeDelay);
+            return d;
+        }
+
+        /**
+         * Check if a task is completed
+         */
+        function isTaskCompleted(stageIndex, taskIndex) {
+            return taskCompletions.find(
+                tc => tc.stageIndex === stageIndex && tc.taskIndex === taskIndex
+            );
+        }
+
+        /**
+         * Open modal to mark task as done
+         */
+        function openTaskCompletionModal(stageIndex, taskIndex, taskText, scheduledDate) {
+            const modal = document.getElementById('taskCompletionModal');
+            const completion = isTaskCompleted(stageIndex, taskIndex);
+            
+            // Update all content BEFORE showing the modal
+            currentTaskContext = { stageIndex, taskIndex, taskText, scheduledDate };
+            
+            document.getElementById('taskModalTitle').textContent = completion ? 'Edit Task Completion' : 'Mark Task as Done';
+            document.getElementById('taskModalDescription').textContent = taskText;
+            document.getElementById('taskScheduledDate').textContent = formatDate(scheduledDate);
+            
+            // Pre-fill with completion date if editing, otherwise use today
+            const dateInput = document.getElementById('taskCompletionDate');
+            if (completion) {
+                dateInput.value = new Date(completion.completedDate).toISOString().split('T')[0];
+            } else {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+            
+            // Show modal with smooth animation
+            requestAnimationFrame(() => {
+                modal.classList.add('modal-show');
+            });
+        }
+
+        /**
+         * Close task completion modal
+         */
+        function closeTaskCompletionModal() {
+            const modal = document.getElementById('taskCompletionModal');
+            modal.classList.remove('modal-show');
+            currentTaskContext = null;
+        }
+
+        /**
+         * Save task completion
+         */
+        async function saveTaskCompletion() {
+            if (!currentTaskContext) return;
+            
+            const completionDateStr = document.getElementById('taskCompletionDate').value;
+            if (!completionDateStr) {
+                alert('Please select a completion date');
+                return;
+            }
+            
+            const { stageIndex, taskIndex, scheduledDate } = currentTaskContext;
+            
+            try {
+                await IndexedDBStorage.saveTaskCompletion(
+                    farmInfo.id,
+                    stageIndex,
+                    taskIndex,
+                    scheduledDate.toISOString(),
+                    new Date(completionDateStr).toISOString()
+                );
+                
+                // Reload task completions and re-render
+                await loadTaskCompletions();
+                renderGuide();
+                closeTaskCompletionModal();
+            } catch (error) {
+                console.error('Error saving task completion:', error);
+                alert('Failed to save task completion. Please try again.');
+            }
+        }
+
+        /**
+         * Delete/undo task completion
+         */
+        async function deleteTaskCompletion(stageIndex, taskIndex) {
+            if (!confirm('Remove this task completion? Future tasks will revert to original schedule.')) {
+                return;
+            }
+            
+            try {
+                await IndexedDBStorage.deleteTaskCompletion(farmInfo.id, stageIndex, taskIndex);
+                
+                // Reload and re-render
+                await loadTaskCompletions();
+                renderGuide();
+            } catch (error) {
+                console.error('Error deleting task completion:', error);
+                alert('Failed to remove task completion. Please try again.');
+            }
+        }
+
+        /**
+         * Load task completions from database
+         */
+        async function loadTaskCompletions() {
+            if (!farmInfo || !farmInfo.id) {
+                taskCompletions = [];
+                return;
+            }
+            
+            try {
+                taskCompletions = await IndexedDBStorage.getTaskCompletions(farmInfo.id);
+                console.log('Loaded task completions:', taskCompletions);
+            } catch (error) {
+                console.error('Error loading task completions:', error);
+                taskCompletions = [];
+            }
+        }
+
+        /**
+         * Toggle task action buttons visibility
+         */
+        function toggleTaskActions(taskId) {
+            const taskItem = document.getElementById(taskId);
+            if (!taskItem) return;
+            
+            // Close all other open tasks
+            const allTasks = document.querySelectorAll('.task-item');
+            allTasks.forEach(task => {
+                if (task.id !== taskId) {
+                    task.classList.remove('task-expanded');
+                }
+            });
+            
+            // Toggle current task
+            taskItem.classList.toggle('task-expanded');
+        }
+
+        function renderGuide() {
+            const guide = document.getElementById('guide');
+            if (!farmInfo) {
+                guide.innerHTML = `
+                    <div class="missing-farm-info">
+                        <h3>Set up your farm first</h3>
+                        <p>Please enter your farm details to get started.</p>
+                        <a class="primary-btn" href="farm-setup.html">Go to Farm Setup</a>
+                    </div>
+                `;
+                return;
+            }
+
+            // Farm info summary
+            let farmInfoHTML = `<div class="farm-summary-card">
+                <b>Farm Name:</b> ${farmInfo.name}<br>
+                <b>Size:</b> ${farmInfo.size} ha<br>
+                <b>Start Date:</b> ${formatDate(new Date(farmInfo.startDate))}<br>
+                <b>Cropping:</b> ${farmInfo.cropping}
+            </div>`;
+
+            // Render stages: show tasks with execution dates (date shown before description)
+            let stagesHTML = stages.map((s) => {
+                const availability = canStartStage(s);
+
+
+                let section = `<section class="stage-card">
+                    <h3>${s.title}</h3>
+                    <p>${s.desc}</p>
+                    <div class="stage-tip">${s.tip}</div>`;
+
+                // show resource block if present
+                if (s.resourcesPerHectare) {
+                    const resources = calculateResourcesPerHectare(farmInfo.size, s);
+                    if (resources) {
+                        section += `<div style='background:#f0f0f0; padding:12px; border-radius:4px; margin:12px 0;'>
+                            <b style='color:#2c3e50;'>Resources Required (${farmInfo.size} ha):</b><br>
+                            <div style='margin-top:8px; color:#333;'>
+                                <b>Total Fertilizer:</b> ${resources.totalFertilizer}<br>
+                                <b>Total Pesticide:</b> ${resources.totalPesticide}<br>
+                                <div style='margin-top:8px; font-size:0.9rem;'>
+                                    <b>Application Schedule:</b><br>`;
+                        resources.applications.forEach(app => {
+                            section += `Day ${app.day}: ${app.fertilizer} fertilizer <br>`;
+                        });
+                        section += `</div></div>`;
+                    }
+                }
+
+                // render tasks with execution dates — date shown before description (bulleted)
+                if (s.tasks && s.tasks.length > 0) {
+                    section += `<ul class="task-list" style="margin:12px 0 0 0; padding:0; list-style:none; color:#333;">`;
+                        s.tasks.forEach((task, taskIdx) => {
+                            let taskText = typeof task === 'object' ? task.text : task;
+                            const taskOffset = typeof task === 'object' && task.offset != null ? task.offset : s.offset;
+                            
+                            // Calculate adjusted date and check completion
+                            const stageIdx = stages.indexOf(s);
+                            const adjustedDate = getAdjustedDate(taskOffset, stageIdx, taskIdx);
+                            const originalDate = farmInfo && farmInfo.startDate ? new Date(farmInfo.startDate) : null;
+                            if (originalDate) {
+                                originalDate.setDate(originalDate.getDate() + taskOffset);
+                            }
+                            
+                            const completion = isTaskCompleted(stageIdx, taskIdx);
+                            const cumulativeDelay = calculateCumulativeDelay(stageIdx, taskIdx);
+                            const isDelayed = cumulativeDelay > 0;
+
+                            // If we have farm size and the task mentions "bags/ha", replace it
+                            if (farmInfo && farmInfo.size) {
+                                taskText = taskText.replace(/(\d+)\s*bags\s*\/\s*ha/gi, (match, p1) => {
+                                    const perHa = parseFloat(p1);
+                                    const total = perHa * parseFloat(farmInfo.size);
+                                    return Number.isInteger(total) ? `${total} bags` : `${total.toFixed(2)} bags`;
+                                });
+                            }
+
+                            // Task item with completion status
+                            const delayClass = isDelayed ? 'task-delayed' : '';
+                            const taskId = `task-${stageIdx}-${taskIdx}`;
+                            section += `<li class="task-item ${completion ? 'task-completed' : ''} ${delayClass}" id="${taskId}" onclick="toggleTaskActions('${taskId}')">`;
+                            
+                            section += `<div class="task-content-wrapper">`;
+                            section += `<div class="task-info">`;
+                            
+                            // Date and delay info
+                            if (adjustedDate) {
+                                section += `<div class="task-date">`;
+                                
+                                const TRANSPLANTING_STAGE = 3;
+                                const isPostTransplant = stageIdx > TRANSPLANTING_STAGE;
+                                const transplantCompletion = getTransplantingCompletion();
+                                
+                                if (completion) {
+                                    // Show completed date
+                                    const completedDate = new Date(completion.completedDate);
+                                    section += `<span class="task-completed-label">✓ Completed: ${formatDate(completedDate)}</span>`;
+                                    
+                                    if (completion.delayDays !== 0) {
+                                        const delayText = completion.delayDays > 0 
+                                            ? `+${completion.delayDays} day${completion.delayDays > 1 ? 's' : ''} late`
+                                            : `${Math.abs(completion.delayDays)} day${Math.abs(completion.delayDays) > 1 ? 's' : ''} early`;
+                                        const delayColor = completion.delayDays > 0 ? 'task-late' : 'task-early';
+                                        section += ` <span class="${delayColor}">(${delayText})</span>`;
+                                    }
+                                    
+                                    section += `<br><span class="task-scheduled-label">Scheduled: ${formatDate(adjustedDate)}</span>`;
+                                } else {
+                                    // Show scheduled/adjusted date
+                                    if (isPostTransplant && transplantCompletion) {
+                                        // Post-transplanting: show as fixed from transplant date
+                                        section += `<span class="task-scheduled-label">Scheduled: ${formatDate(adjustedDate)}</span>`;
+                                        const transplantDate = new Date(transplantCompletion.completedDate);
+                                        const daysAfter = Math.round((adjustedDate - transplantDate) / (1000 * 60 * 60 * 24));
+                                        section += `<br><span class="task-scheduled-label" style="font-size: 0.85rem; color: #999;">(${daysAfter} days after transplanting)</span>`;
+                                    } else if (isDelayed) {
+                                        // Pre-transplanting with delays
+                                        section += `<span class="task-adjusted-label">Adjusted: ${formatDate(adjustedDate)}</span>`;
+                                        section += ` <span class="task-delay-badge">(+${cumulativeDelay} day${cumulativeDelay > 1 ? 's' : ''})</span>`;
+                                        section += `<br><span class="task-original-label">Original: ${formatDate(originalDate)}</span>`;
+                                    } else {
+                                        // On schedule
+                                        section += `<span class="task-scheduled-label">Scheduled: ${formatDate(adjustedDate)}</span>`;
+                                    }
+                                }
+                                
+                                section += `</div>`;
+                            }
+                            
+                            // Task text - escape HTML properly
+                            const escapedText = taskText.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            section += `<div class="task-text ${completion ? 'task-text-completed' : ''}">${escapedText}</div>`;
+                            section += `</div>`;
+                            
+                            // Action buttons - escape task text for onclick
+                            const safeTaskText = taskText.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            section += `<div class="task-actions">`;
+                            section += `<span class="task-expand-icon">▼</span>`;
+                            if (completion) {
+                                // For completed tasks, use the adjusted date as the scheduled date
+                                section += `<button class="task-btn task-edit-btn" onclick='event.stopPropagation(); openTaskCompletionModal(${stageIdx}, ${taskIdx}, "${safeTaskText}", new Date("${adjustedDate.toISOString()}"))' title="Edit completion date">✏️</button>`;
+                                section += `<button class="task-btn task-undo-btn" onclick="event.stopPropagation(); deleteTaskCompletion(${stageIdx}, ${taskIdx})" title="Undo completion">↩️</button>`;
+                            } else {
+                                section += `<button class="task-btn task-done-btn" onclick='event.stopPropagation(); openTaskCompletionModal(${stageIdx}, ${taskIdx}, "${safeTaskText}", new Date("${adjustedDate.toISOString()}"))' title="Mark as done">✓ Done</button>`;
+                            }
+                            section += `</div>`;
+                            
+                            section += `</div>`;
+                            section += `</li>`;
+                        });
+                    section += `</ul>`;
+                }
+
+                section += '</section><hr class="section-divider">';
+                return section;
+            }).join('');
+
+            guide.innerHTML = farmInfoHTML + stagesHTML;
+        }
+
+        // Load farm info from IndexedDB (multi-farm support)
+        async function loadFarmInfo() {
+                    try {
+                // Wait for IndexedDB to be ready
+                        const start = Date.now();
+                while (!window.IndexedDBStorage && Date.now() - start < 3000) {
+                            await new Promise(r => setTimeout(r, 50));
+                        }
+
+                if (!window.IndexedDBStorage) {
+                    console.error('IndexedDB not ready');
+                                return null;
+                            }
+
+                // Get selected farm ID
+                const selectedFarmId = await IndexedDBStorage.getSelectedFarmId();
+                
+                if (!selectedFarmId) {
+                    // Try legacy farmInfo for backward compatibility
+                    console.log('No selected farm, trying legacy storage');
+                    const legacyFarm = await MADBStorage.getItem('farmInfo');
+                    farmInfo = legacyFarm;
+                    return legacyFarm;
+                }
+
+                // Load the selected farm
+                const farm = await IndexedDBStorage.getFarm(selectedFarmId);
+                console.log('Loaded selected farm:', farm);
+                farmInfo = farm;
+                return farm;
+                    } catch (error) {
+                        console.error('Error loading farm info:', error);
+                        farmInfo = null;
+                        return null;
+                    }
+        }
+
+        // Initial render
+        async function ensureIndexedDBReady(timeout = 3000) {
+            if (window.IndexedDBStorage && window.MADBStorage) return;
+            return new Promise((resolve, reject) => {
+                const start = Date.now();
+                const check = () => {
+                    if (window.IndexedDBStorage && window.MADBStorage) return resolve();
+                    if (Date.now() - start > timeout) return reject(new Error('IndexedDB not ready'));
+                    setTimeout(check, 50);
+                };
+                check();
+            });
+        }
+
+        async function initGuide() {
+            // Ensure storage helper is available (helps when service worker serves stale HTML)
+            try {
+                await ensureIndexedDBReady();
+            } catch (e) {
+                console.warn('IndexedDBStorage not ready before init, continuing and will retry on focus', e);
+            }
+            try {
+                console.log('Starting guide initialization...');
+
+                // Wait for IndexedDB to be ready
+                if (!window.IndexedDBStorage) {
+                    console.log('Waiting for IndexedDB to initialize...');
+                    await new Promise(resolve => {
+                        const checkDB = () => {
+                            if (window.IndexedDBStorage) {
+                                console.log('IndexedDB is now available');
+                                resolve();
+                            } else {
+                                console.log('IndexedDB not ready yet, checking again...');
+                                setTimeout(checkDB, 50);
+                            }
+                        };
+                        checkDB();
+                    });
+                }
+
+                console.log('IndexedDB ready, loading farm info...');
+                let loadedFarmInfo = await loadFarmInfo();
+                console.log('Farm info loaded:', loadedFarmInfo);
+
+                // Fallback: if IndexedDB doesn't have farmInfo, try migrating from localStorage
+                if (!loadedFarmInfo) {
+                    try {
+                        const raw = localStorage.getItem('farmInfo');
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            console.log('Found farmInfo in localStorage, migrating to IndexedDB:', parsed);
+                            await MADBStorage.setItem('farmInfo', parsed);
+                            loadedFarmInfo = parsed;
+                        }
+                    } catch (err) {
+                        console.warn('No valid farmInfo in localStorage or migration failed:', err);
+                    }
+                }
+
+                if (!loadedFarmInfo) {
+                    console.log('No farm info found, showing setup prompt');
+                } else {
+                    console.log('Farm info found, showing guide');
+                }
+
+                // Ensure global farmInfo is set for renderGuide
+                farmInfo = loadedFarmInfo || null;
+                
+                // Load task completions if we have a farm
+                if (farmInfo) {
+                    await loadTaskCompletions();
+                }
+                
+                renderGuide();
+            } catch (error) {
+                console.error('Error initializing guide:', error);
+                renderGuide(); // Show setup prompt on error
+            }
+        }
+
+        // Setup modal event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('confirmTaskCompletion').addEventListener('click', saveTaskCompletion);
+            document.getElementById('cancelTaskCompletion').addEventListener('click', closeTaskCompletionModal);
+            
+            // Close modal on background click
+            document.getElementById('taskCompletionModal').addEventListener('click', (e) => {
+                if (e.target.id === 'taskCompletionModal') {
+                    closeTaskCompletionModal();
+                }
+            });
+        });
+        initGuide();
+        // Re-check guide when user returns to the page (covers redirects from farm setup)
+        window.addEventListener('focus', async () => {
+            console.log('Page focused — re-initializing rice guide to pick up farm info changes');
+            try {
+                await initGuide();
+            } catch (e) {
+                console.warn('Re-init on focus failed:', e);
+            }
+        });
+
+        // Global handlers to capture unexpected promise rejections and errors (helps debugging)
+        window.addEventListener('unhandledrejection', (evt) => {
+            console.error('Unhandled promise rejection (rice-guide):', evt.reason, evt);
+        });
+        window.addEventListener('error', (evt) => {
+            console.error('Global error (rice-guide):', evt.message, evt.error || evt);
+        });
+
+        // During development on localhost, unregister any service worker to avoid stale cached HTML
+        (async function unregisterSWInDev() {
+            try {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    if ('serviceWorker' in navigator) {
+                        const regs = await navigator.serviceWorker.getRegistrations();
+                        for (const reg of regs) {
+                            console.log('Unregistering service worker (dev):', reg);
+                            await reg.unregister();
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to unregister service worker in dev:', e);
+            }
+        })();
+    </script>
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-label">Dashboard</div>
+        </a>
+        <a href="rice-guide.html" class="nav-item active">
+            <div class="nav-icon">🌱</div>
+            <div class="nav-label">Rice Guide</div>
+        </a>
+        <a href="resource-tracker.html" class="nav-item">
+            <div class="nav-icon">💧</div>
+            <div class="nav-label">Resources</div>
+        </a>
+    </nav>
+
+    <script>
+        // Register service worker (skip in development on localhost/127.0.0.1)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+                    console.log('[PWA] Skipping service worker registration in development');
+                    return;
+                }
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('[PWA] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
