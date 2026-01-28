@@ -208,6 +208,12 @@
             const modal = document.getElementById('taskCompletionModal');
             const completion = isTaskCompleted(stageIndex, taskIndex);
             
+            // If task is not completed and not enabled, prevent opening
+            if (!completion && !RiceStages.isTaskEnabled(stageIndex, taskIndex, taskCompletions)) {
+                alert('Please complete previous tasks first.');
+                return;
+            }
+            
             // Update all content BEFORE showing the modal
             currentTaskContext = { stageIndex, taskIndex, taskText, scheduledDate };
             
@@ -471,7 +477,11 @@
                                 section += `<button class="task-btn task-edit-btn" onclick='event.stopPropagation(); openTaskCompletionModal(${stageIdx}, ${taskIdx}, "${safeTaskText}", new Date("${adjustedDate.toISOString()}"))' title="Edit completion date">✏️</button>`;
                                 section += `<button class="task-btn task-undo-btn" onclick="event.stopPropagation(); deleteTaskCompletion(${stageIdx}, ${taskIdx})" title="Undo completion">↩️</button>`;
                             } else {
-                                section += `<button class="task-btn task-done-btn" onclick='event.stopPropagation(); openTaskCompletionModal(${stageIdx}, ${taskIdx}, "${safeTaskText}", new Date("${adjustedDate.toISOString()}"))' title="Mark as done">✓ Done</button>`;
+                                // Check if task is enabled based on offset order
+                                const isEnabled = RiceStages.isTaskEnabled(stageIdx, taskIdx, taskCompletions);
+                                const disabledAttr = isEnabled ? '' : 'disabled';
+                                const disabledTitle = isEnabled ? 'Mark as done' : 'Complete previous tasks first';
+                                section += `<button class="task-btn task-done-btn" ${disabledAttr} onclick='event.stopPropagation(); openTaskCompletionModal(${stageIdx}, ${taskIdx}, "${safeTaskText}", new Date("${adjustedDate.toISOString()}"))' title="${disabledTitle}">✓ Done</button>`;
                             }
                             section += `</div>`;
                             
