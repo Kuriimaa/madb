@@ -62,7 +62,7 @@ const RICE_CULTIVATION_STAGES = [
         ],
         resourcesPerHectare: {
             totalFertilizer: '8 bags',
-            totalPesticide: '~2 quarts (adjust based on actual need)',
+            totalPesticide: '2 quarts',
             applications: [
                 { day: 15, fertilizer: '3 bags' },
                 { day: 30, fertilizer: '3 bags' },
@@ -203,3 +203,4 @@ window.RiceStages = {
     getDashboardStages,
     isTaskEnabled
 };
+
