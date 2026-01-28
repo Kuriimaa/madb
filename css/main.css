@@ -324,6 +324,10 @@ body.dashboard-page header .header-subtitle {
     margin-top: 4px;
 }
 
+#dashboardContent {
+    padding-bottom: 45px;
+}
+
 body.dashboard-page .summary-section {
     padding: 20px;
     background: #f8f9fa;
@@ -1906,12 +1910,33 @@ body.manage-farms-page .error-message {
 .task-done-btn {
     background: var(--primary);
     color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
 }
 
 .task-done-btn:hover {
     background: #3a6245;
     transform: scale(1.05);
 }
+
+.task-done-btn:disabled {
+    background: #cccccc;
+    color: #999;
+    cursor: not-allowed;
+    display: none;
+}
+
+.task-done-btn:disabled:hover {
+    background: #cccccc;
+    transform: scale(1);
+}
+
+.task-item.task-expanded .task-done-btn:disabled {
+    display: inline-flex;
+}
+
 
 .task-edit-btn {
     background: #3d85c6;
