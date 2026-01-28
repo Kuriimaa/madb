@@ -34,7 +34,7 @@ const RICE_CULTIVATION_STAGES = [
         tip: 'Perform this step only after field leveling and seedlings readiness — schedule shown below.',
         tasks: [
             { text: 'Verify soil is leveled (Phase 1)', offset: 25 },
-            { text: 'Verify seedlings are ready (Phase 2)', offset: 29 },
+            { text: 'Verify if seedlings are ready (Phase 2)', offset: 29 },
             { text: 'Apply pesticide on the entire field to eliminate remaining pests', offset: 29 },
         ],
         offset: 29,
@@ -139,11 +139,67 @@ function getDashboardStages() {
     }));
 }
 
+/**
+ * Determine if a specific task should be enabled for completion
+ * Task is enabled only if:
+ * 1. It's not already completed, AND
+ * 2. All tasks with smaller offset values are completed
+ * 
+ * Succession is based purely on offset values (scheduled day numbers)
+ * 
+ * @param {number} stageIndex - Index of the stage
+ * @param {number} taskIndex - Index of the task within the stage
+ * @param {Array} taskCompletions - Array of completed tasks
+ * @returns {boolean} - Whether this task can be marked as done
+ */
+function isTaskEnabled(stageIndex, taskIndex, taskCompletions) {
+    // Check if already completed
+    const isCompleted = taskCompletions.some(tc => 
+        tc.stageIndex === stageIndex && tc.taskIndex === taskIndex
+    );
+    if (isCompleted) return false;
+    
+    // Get offset of this task
+    const stage = RICE_CULTIVATION_STAGES[stageIndex];
+    if (!stage || !stage.tasks[taskIndex]) return false;
+    
+    const task = stage.tasks[taskIndex];
+    const thisTaskOffset = typeof task === 'object' && task.offset != null ? task.offset : stage.offset;
+    
+    // Get all incomplete tasks with their offsets
+    const allIncompleteWithOffsets = [];
+    RICE_CULTIVATION_STAGES.forEach((s, sIdx) => {
+        s.tasks.forEach((t, tIdx) => {
+            const isThisComplete = taskCompletions.some(tc =>
+                tc.stageIndex === sIdx && tc.taskIndex === tIdx
+            );
+            if (!isThisComplete) {
+                const taskOffset = typeof t === 'object' && t.offset != null ? t.offset : s.offset;
+                allIncompleteWithOffsets.push({
+                    stageIndex: sIdx,
+                    taskIndex: tIdx,
+                    offset: taskOffset
+                });
+            }
+        });
+    });
+    
+    // Sort by offset (smallest first)
+    allIncompleteWithOffsets.sort((a, b) => a.offset - b.offset);
+    
+    // This task is enabled only if it's the first incomplete task by offset
+    if (allIncompleteWithOffsets.length === 0) return false;
+    
+    const firstIncomplete = allIncompleteWithOffsets[0];
+    return firstIncomplete.stageIndex === stageIndex && firstIncomplete.taskIndex === taskIndex;
+}
+
 // Export for use in other scripts
 window.RiceStages = {
     STAGES: RICE_CULTIVATION_STAGES,
     TOTAL_DAYS: TOTAL_CULTIVATION_DAYS,
     getCurrentStageIndex,
     calculateProgress,
-    getDashboardStages
+    getDashboardStages,
+    isTaskEnabled
 };
